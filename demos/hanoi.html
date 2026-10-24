@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f1226">
+  <title>Tower of Hanoi</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <style>
+    #board { position: absolute; inset: 0; touch-action: none; }
+    .peg {
+      position: absolute;
+      width: 14px;
+      border-radius: 7px 7px 0 0;
+      background: linear-gradient(90deg, #8a6a4a, #c49a6c, #8a6a4a);
+    }
+    .base {
+      position: absolute;
+      height: 18px;
+      border-radius: 9px;
+      background: linear-gradient(#c49a6c, #7a5a3a);
+    }
+    .peg-label {
+      position: absolute;
+      color: var(--muted);
+      font-size: 16px;
+      text-align: center;
+      transform: translateX(-50%);
+    }
+    .disk {
+      position: absolute;
+      left: 0;
+      top: 0;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: rgba(0, 0, 0, 0.55);
+      box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.18), inset 0 4px 0 rgba(255, 255, 255, 0.3), 0 4px 10px rgba(0, 0, 0, 0.35);
+      will-change: transform;
+    }
+    .disk.lifted { box-shadow: 0 0 0 4px #fff, 0 12px 24px rgba(0, 0, 0, 0.5); }
+    .disk.snap { transition: transform 0.18s ease-out; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="btn" href="../index.html">◀ Home</a>
+    <h1>Tower of Hanoi</h1>
+    <button class="btn math" id="mathBtn">Where's the math?</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <div id="board"></div>
+    <div class="stat">Moves: <b id="moves">0</b> &nbsp;·&nbsp; Fewest possible: <b id="best">7</b></div>
+    <div class="overlay-text top" id="hint" style="top:64px;white-space:normal;max-width:90%;transition:opacity .4s">Move the whole tower to another peg. A bigger disk can never sit on a smaller one.</div>
+  </main>
+
+  <footer class="controls">
+    <div class="group">
+      <span class="label">Disks</span>
+      <button class="btn small" id="fewer">−</button>
+      <span class="val" id="nDisks">3</span>
+      <button class="btn small" id="more">+</button>
+    </div>
+    <div class="sep"></div>
+    <button class="btn" id="undo">↶ Undo</button>
+    <button class="btn" id="reset">⟲ Restart</button>
+    <div class="sep"></div>
+    <button class="btn blue" id="solve">▶ Auto-solve</button>
+    <div class="group">
+      <span class="label">Speed</span>
+      <input type="range" id="speed" min="1" max="10" value="4">
+    </div>
+  </footer>
+
+  <aside class="drawer" id="drawer">
+    <h2>Recursion: the secret move</h2>
+    <p>To move a tower of <span class="math-inline">n</span> disks:</p>
+    <ol>
+      <li>Move the top <span class="math-inline">n−1</span> disks out of the way (that's a smaller version of the same puzzle!).</li>
+      <li>Move the biggest disk.</li>
+      <li>Move the <span class="math-inline">n−1</span> disks back on top of it.</li>
+    </ol>
+    <p>A problem that solves itself using smaller copies of itself is called <b>recursive</b>.</p>
+    <h3>Counting the moves</h3>
+    <p>If <span class="math-inline">M(n)</span> is the fewest moves for <span class="math-inline">n</span> disks, then
+      <span class="math-inline">M(n) = 2·M(n−1) + 1</span>, which works out to
+      <b class="math-inline">M(n) = 2ⁿ − 1</b>.</p>
+    <p>1, 3, 7, 15, 31, 63, 127, 255… Each extra disk <i>doubles</i> the work. Mathematicians prove formulas like this with <b>mathematical induction</b>.</p>
+    <div class="wow">Legend says monks are moving 64 golden disks, one per second. They'd need 2⁶⁴ − 1 ≈ 18 quintillion moves, which is about 585 billion years. The universe is only about 14 billion years old.</div>
+    <h3>Where it shows up</h3>
+    <ul>
+      <li>Computer science: recursive algorithms and stacks</li>
+      <li>Binary numbers: disk <i>k</i> moves every 2<sup>k</sup> steps</li>
+      <li>Gray codes and the Sierpinski triangle (yes, really!)</li>
+    </ul>
+    <div class="area">Discrete Math · Recursion · Proof by Induction</div>
+  </aside>
+
+  <script src="../shared/common.js"></script>
+  <script src="hanoi.js"></script>
+</body>
+</html>

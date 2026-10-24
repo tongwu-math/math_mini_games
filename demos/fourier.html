@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f1226">
+  <title>Fourier Circles</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <style>
+    .stage { background: radial-gradient(circle at center, #1a1f45 0%, var(--bg) 70%); }
+    #hint {
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--text);
+      padding: 16px 28px;
+      border: 2px dashed rgba(255, 138, 61, 0.6);
+    }
+    #hint small { display: block; font-size: 16px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+    #circles { width: 200px; }
+    @media (max-width: 700px) { #circles { width: 140px; } #hint { font-size: 21px; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="btn" href="../index.html">◀ Home</a>
+    <h1>Fourier Circles</h1>
+    <button class="btn math" id="mathBtn">Where's the math?</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="stat" id="stat" hidden><b id="count">256</b> spinning circles</div>
+    <div class="overlay-text" id="hint">☝️ Draw any shape with your finger<small>…or tap a shape below</small></div>
+    <div class="overlay-text bottom" id="tip" hidden>Slide <b>Circles</b> left: fewer circles, blurrier shape</div>
+  </main>
+
+  <footer class="controls">
+    <button class="btn" id="clear">✎ Draw new</button>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="label">Try</span>
+      <button class="btn small" data-preset="heart">♥ Heart</button>
+      <button class="btn small" data-preset="pi">π</button>
+      <button class="btn small" data-preset="star">★ Star</button>
+      <button class="btn small" data-preset="note">♪ Note</button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="label">Circles</span>
+      <input type="range" id="circles" min="0" max="100" step="0.5" value="100">
+      <span class="val" id="circlesVal">256</span>
+    </div>
+    <div class="group">
+      <span class="label">Speed</span>
+      <input type="range" id="speed" min="1" max="10" value="4">
+    </div>
+  </footer>
+
+  <aside class="drawer" id="drawer">
+    <h2>Every drawing is secretly circles</h2>
+    <p>Each circle spins at a steady speed: one turns once per loop, the next twice, the next three times, and some spin backwards. Stack them tip-to-tail and the last tip can trace <b>any</b> closed shape you draw.</p>
+    <h3>Spinning arrows</h3>
+    <p>An arrow of length <span class="math-inline">r</span> spinning <span class="math-inline">ω</span> times per loop is the complex number
+      <b class="math-inline">r·e<sup>iωt</sup></b>. Your shape is a sum of them:</p>
+    <p class="math-inline">z(t) = c₀ + c₁e<sup>it</sup> + c₋₁e<sup>−it</sup> + c₂e<sup>2it</sup> + …</p>
+    <p>Finding the sizes and starting angles <span class="math-inline">c<sub>k</sub></span> is the <b>Fourier transform</b>. We sample your drawing at 256 points, solve for 256 circles, and line them up biggest first.</p>
+    <h3>Fewer circles = blurrier</h3>
+    <p>Big, slow circles give the overall outline. Tiny, fast ones add the sharp corners. Throw the tiny ones away and the shape stays recognizable, which is exactly how compression works.</p>
+    <div class="wow">Around 150 AD, astronomers like Ptolemy predicted planet motions using circles riding on circles, called "epicycles." Fourier math explains why that worked so well: with enough circles, you can trace any loop at all.</div>
+    <h3>Where it shows up</h3>
+    <ul>
+      <li><b>JPEG</b> photos keep the big waves and toss the tiny ones</li>
+      <li><b>MP3</b> music drops the frequencies your ears won't miss</li>
+      <li><b>MRI</b> scanners measure waves, then a Fourier transform turns them into a picture of your body</li>
+      <li><b>Noise-cancelling headphones</b> play the opposite wave to erase the noise</li>
+    </ul>
+    <div class="area">Complex Analysis · Fourier Analysis</div>
+  </aside>
+
+  <script src="../shared/common.js"></script>
+  <script src="fourier.js"></script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f1226">
+  <title>Fluid Paint</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <style>
+    #fluid { background: #0f1226; }
+    #hint { transition: opacity 0.9s ease; }
+    #hint.gone { opacity: 0; }
+    .glmsg {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      font-size: 19px;
+      line-height: 1.5;
+      color: var(--muted);
+      background: rgba(15, 18, 38, 0.6);
+    }
+    .glmsg[hidden] { display: none; }
+    .glmsg .card {
+      max-width: 520px;
+      padding: 24px 28px;
+      border-radius: 20px;
+      background: var(--bg2);
+      border: 1px solid var(--line);
+    }
+    .glmsg b { display: block; margin-bottom: 8px; font-size: 24px; color: var(--text); }
+    .drawer .eq {
+      margin: 10px 0;
+      padding: 12px 10px;
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      text-align: center;
+      font-family: "Times New Roman", serif;
+      font-style: italic;
+      font-size: 22px;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    .drawer .terms li .math-inline { color: var(--accent); white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="btn" href="../index.html">◀ Home</a>
+    <h1>Fluid Paint</h1>
+    <button class="btn math" id="mathBtn">Where's the math?</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="fluid"></canvas>
+    <div class="overlay-text bottom" id="hint">Swipe to swirl the fluid. Try lots of fingers!</div>
+    <div class="glmsg" id="glmsg" hidden><div class="card" id="glmsgText"></div></div>
+  </main>
+
+  <footer class="controls">
+    <button class="btn" id="clear">⟲ Clear</button>
+    <button class="btn" id="freeze">❄ Freeze</button>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="label">Swirl</span>
+      <input type="range" id="swirl" min="0" max="50" step="1" value="30">
+      <span class="val" id="swirlVal">30</span>
+    </div>
+    <div class="group">
+      <span class="label">Fade</span>
+      <input type="range" id="fade" min="0" max="100" step="1" value="20">
+      <span class="val" id="fadeVal">20</span>
+    </div>
+    <div class="sep"></div>
+    <button class="btn" id="rainbow">🌈 Rainbow</button>
+    <button class="btn primary" id="splash">💦 Splash!</button>
+  </footer>
+
+  <aside class="drawer" id="drawer">
+    <h2>Painting with Navier–Stokes</h2>
+    <p>This isn't a video. Your screen is <b>solving the equations of fluid motion</b> about 60 times every second, on a grid of thousands of tiny cells, using the graphics chip.</p>
+
+    <h3>The equation of motion</h3>
+    <div class="eq">∂<b>u</b>/∂t + (<b>u</b>·∇)<b>u</b> = −∇p/ρ + ν∇²<b>u</b> + <b>f</b></div>
+    <p><span class="math-inline">u</span> is the fluid's velocity (which way and how fast it moves at each spot). Each piece of the equation is a rule:</p>
+    <ul class="terms">
+      <li><span class="math-inline">∂u/∂t</span>: how the flow at one spot changes as time ticks.</li>
+      <li><span class="math-inline">(u·∇)u</span>: the fluid <b>carries itself along</b>. A moving swirl drags its own motion with it.</li>
+      <li><span class="math-inline">−∇p/ρ</span>: fluid gets <b>pushed from high pressure to low pressure</b>, like air rushing out of a balloon.</li>
+      <li><span class="math-inline">ν∇²u</span>: <b>stickiness</b> (viscosity). Honey has a big ν, air a tiny one. It smooths out the flow.</li>
+      <li><span class="math-inline">f</span>: outside pushes. Here, that's <b>your fingers</b>!</li>
+    </ul>
+
+    <h3>No squishing allowed</h3>
+    <div class="eq">∇·<b>u</b> = 0</div>
+    <p>Water can't be squeezed into a smaller space, and it can't appear or vanish. So whatever flows into a cell must flow out. Each frame, the computer solves for the pressure that makes this true (a <b>Poisson equation</b>, ∇²p = ∇·u, solved with 20 rounds of guess-and-improve called <b>Jacobi iteration</b>). Then it subtracts the pressure push from the flow. That's what turns a straight swipe into curling swirls.</p>
+
+    <h3>How the computer does it</h3>
+    <p>This uses Jos Stam's <b>Stable Fluids</b> method (1999). It traces each cell <i>backwards in time</i> to see where its fluid came from (semi-Lagrangian advection). That trick keeps the simulation from blowing up, even with big time steps. A "swirl boost" (vorticity confinement) brings back small whirls that the coarse grid would otherwise smear out.</p>
+
+    <div class="wow">Nobody knows whether the 3D Navier–Stokes equations always have smooth solutions, or whether a flow could suddenly "blow up." Proving it either way is one of the Clay Institute's Millennium Prize Problems, worth $1,000,000.</div>
+
+    <h3>Where it shows up</h3>
+    <ul>
+      <li>Weather forecasts and climate models</li>
+      <li>Airplane, car, and wind-turbine design</li>
+      <li>Blood flow through hearts and arteries</li>
+      <li>Movie and video-game special effects: smoke, fire, ocean waves</li>
+    </ul>
+    <div class="area">Partial Differential Equations · Numerical Analysis</div>
+  </aside>
+
+  <script src="../shared/common.js"></script>
+  <script src="fluid.js"></script>
+</body>
+</html>

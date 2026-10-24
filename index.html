@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Math Play">
+  <meta name="theme-color" content="#0f1226">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <title>Math Playground</title>
+  <link rel="stylesheet" href="shared/style.css">
+  <style>
+    .home-wrap {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 28px 28px 40px;
+    }
+    .hero { text-align: center; margin: 6px 0 26px; }
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(36px, 6vw, 60px);
+      letter-spacing: -1px;
+      background: linear-gradient(90deg, var(--accent), #ff5d9e, var(--accent2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero p { margin: 8px 0 0; color: var(--muted); font-size: 20px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .tile {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      min-height: 190px;
+      padding: 18px 20px;
+      border-radius: 22px;
+      color: #fff;
+      text-decoration: none;
+      overflow: hidden;
+      background: var(--g);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      transition: transform 0.1s;
+      touch-action: manipulation;
+    }
+    .tile:active { transform: scale(0.97); }
+    .tile .icon {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-size: 64px;
+      line-height: 1;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+    }
+    .tile h2 { margin: 0; font-size: 26px; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+    .tile p { margin: 4px 0 0; font-size: 16px; opacity: 0.92; line-height: 1.35; }
+    @media (max-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    .tile .tag {
+      align-self: flex-start;
+      margin-bottom: 8px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.25);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="home-wrap scroll">
+    <div class="hero">
+      <h1>Math Playground</h1>
+      <p>Tap a tile. Play. Then tap <b>“Where's the math?”</b> to see what's behind it.</p>
+    </div>
+    <nav class="grid">
+      <a class="tile" href="demos/hanoi.html" style="--g:linear-gradient(135deg,#ff8a3d,#d9480f)">
+        <span class="icon">🗼</span><span class="tag">Puzzle</span>
+        <h2>Tower of Hanoi</h2><p>Move the tower. Can you do it in the fewest moves?</p>
+      </a>
+      <a class="tile" href="demos/fractal.html" style="--g:linear-gradient(135deg,#4cc9f0,#3a0ca3)">
+        <span class="icon">❄️</span><span class="tag">Create</span>
+        <h2>Fractal Maker</h2><p>Draw one squiggle. Get an infinitely detailed shape.</p>
+      </a>
+      <a class="tile" href="demos/fourier.html" style="--g:linear-gradient(135deg,#f72585,#7209b7)">
+        <span class="icon">🌀</span><span class="tag">Create</span>
+        <h2>Fourier Circles</h2><p>Draw anything. Spinning circles draw it back.</p>
+      </a>
+      <a class="tile" href="demos/fluid.html" style="--g:linear-gradient(135deg,#06d6a0,#118ab2)">
+        <span class="icon">🌊</span><span class="tag">Play</span>
+        <h2>Fluid Paint</h2><p>Swirl colorful liquid with your fingers.</p>
+      </a>
+      <a class="tile" href="demos/cipher.html" style="--g:linear-gradient(135deg,#2b9348,#007f5f)">
+        <span class="icon">🔐</span><span class="tag">Puzzle</span>
+        <h2>Code Breaker</h2><p>Crack secret messages like a cryptographer.</p>
+      </a>
+      <a class="tile" href="demos/kaleidoscope.html" style="--g:linear-gradient(135deg,#ffbe0b,#fb5607)">
+        <span class="icon">🔷</span><span class="tag">Create</span>
+        <h2>Kaleidoscope</h2><p>Draw with symmetry. Every stroke multiplies.</p>
+      </a>
+      <a class="tile" href="demos/chaos.html" style="--g:linear-gradient(135deg,#8338ec,#3a86ff)">
+        <span class="icon">🎲</span><span class="tag">Explore</span>
+        <h2>Chaos Game</h2><p>Random dots… that build a perfect pattern?!</p>
+      </a>
+      <a class="tile" href="demos/lightsout.html" style="--g:linear-gradient(135deg,#ffd60a,#e85d04)">
+        <span class="icon">💡</span><span class="tag">Puzzle</span>
+        <h2>Lights Out</h2><p>Turn off every light. Each tap flips its neighbors too.</p>
+      </a>
+      <a class="tile" href="demos/galton.html" style="--g:linear-gradient(135deg,#ef476f,#9d0208)">
+        <span class="icon">🎯</span><span class="tag">Explore</span>
+        <h2>Galton Board</h2><p>Drop balls through pegs and watch a bell curve appear.</p>
+      </a>
+    </nav>
+  </div>
+  <script src="shared/common.js"></script>
+</body>
+</html>

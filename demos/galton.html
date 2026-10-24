@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f1226">
+  <title>Galton Board</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <style>
+    #legend {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      color: var(--muted);
+      pointer-events: none;
+      background: rgba(15, 18, 38, 0.7);
+      padding: 6px 12px;
+      border-radius: 10px;
+    }
+    #legend.show { display: flex; }
+    #legend i { display: inline-block; width: 26px; height: 4px; border-radius: 2px; background: #fff; box-shadow: 0 0 6px #ff5d9e; }
+    #lean { width: 150px; }
+    .val.wide { min-width: 4.6em; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="btn" href="../index.html">◀ Home</a>
+    <h1>Galton Board</h1>
+    <button class="btn math" id="mathBtn">Where's the math?</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="c"></canvas>
+    <div class="stat">Balls: <b id="total">0</b><br>Average bin: <b id="mean">–</b> <span id="expMean"></span></div>
+    <div id="legend"><i></i> Expected (bell curve)</div>
+  </main>
+
+  <footer class="controls">
+    <button class="btn primary" id="drop1">● Drop 1</button>
+    <button class="btn primary" id="drop100">●●● Drop 100</button>
+    <button class="btn" id="stream">▶ Pour</button>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="label">Rows</span>
+      <input type="range" id="rows" min="4" max="16" step="1" value="12">
+      <span class="val" id="rowsVal">12</span>
+    </div>
+    <div class="group">
+      <span class="label">Lean</span>
+      <input type="range" id="lean" min="0.1" max="0.9" step="0.05" value="0.5">
+      <span class="val wide" id="leanVal">50/50</span>
+    </div>
+    <div class="sep"></div>
+    <button class="btn" id="curveBtn">🔔 Show bell curve</button>
+    <button class="btn" id="clearBtn">🧹 Clear</button>
+  </footer>
+
+  <aside class="drawer" id="drawer">
+    <h2>Chaos that makes a bell</h2>
+    <p>Every ball is random: at each peg it's a coin flip, left or right. You can't predict where one ball lands. But drop hundreds and the same shape appears <i>every single time</i>.</p>
+    <h3>The binomial distribution</h3>
+    <p>With <span class="math-inline">n</span> rows, a ball's bin number is just how many times it bounced right. The chance of landing in bin <span class="math-inline">k</span> is</p>
+    <p style="text-align:center" class="math-inline">P(k) = C(n, k) · p<sup>k</sup> · (1 − p)<sup>n − k</sup></p>
+    <p>where <span class="math-inline">p</span> is the chance of bouncing right (the "Lean" slider).</p>
+    <h3>Pascal's triangle is hiding in the pegs</h3>
+    <p>Count the different paths from the top to each peg: 1; 1, 1; 1, 2, 1; 1, 3, 3, 1… Each number is the sum of the two above it. That's <b>Pascal's triangle</b>, and those path counts are exactly the <span class="math-inline">C(n, k)</span> in the formula. Middle bins have the most paths, so they get the most balls.</p>
+    <h3>The bell curve and the Central Limit Theorem</h3>
+    <p>As the rows increase, the histogram gets closer and closer to a smooth <b>bell curve</b> (the normal distribution). The <b>Central Limit Theorem</b> says this happens whenever you add up lots of small random things. It's one of the most important ideas in all of math.</p>
+    <div class="wow">With 12 rows there are 2¹² = 4,096 different paths a ball can take. 924 of them end in the middle bin, but only 1 path leads to each edge bin.</div>
+    <h3>Where it shows up</h3>
+    <ul>
+      <li>Test scores and people's heights are bell-shaped</li>
+      <li>Election polls use it to compute the "margin of error"</li>
+      <li>Factories use it for quality control</li>
+      <li>Medicine trials, insurance, sports stats, weather forecasts</li>
+    </ul>
+    <div class="area">Probability · Statistics</div>
+  </aside>
+
+  <script src="../shared/common.js"></script>
+  <script src="galton.js"></script>
+</body>
+</html>

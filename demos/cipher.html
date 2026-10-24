@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f1226">
+  <title>Code Breaker</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <style>
+    .stage { display: flex; flex-direction: column; }
+    .infobar {
+      flex: none;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 6px 22px;
+      padding: 8px 14px;
+      font-size: 18px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .infobar b { color: var(--text); font-variant-numeric: tabular-nums; }
+    .infobar .lvl { color: var(--accent); font-weight: 700; }
+    #scroller {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .layout {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      padding: 18px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 16px 18px;
+    }
+    .text-panel { flex: 1 1 460px; max-width: 760px; min-width: 0; }
+    .tool-panel { flex: 0 1 420px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .task { margin: 0 0 12px; font-size: 18px; line-height: 1.4; color: var(--muted); }
+    .task b { color: var(--text); }
+    .legend { display: flex; gap: 18px; justify-content: center; font-size: 15px; color: var(--muted); margin-bottom: 10px; }
+    .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+    /* ---------- message ---------- */
+    .msg {
+      --cw: clamp(27px, 3.5vw, 42px);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px calc(var(--cw) * 0.55);
+      padding: 6px 0 4px;
+      font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    }
+    .word { display: flex; }
+    .ch {
+      width: var(--cw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 0;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .ch .c { font-size: calc(var(--cw) * 0.82); font-weight: 800; line-height: 1.15; color: var(--accent); }
+    .ch .p {
+      font-size: calc(var(--cw) * 0.82);
+      font-weight: 800;
+      line-height: 1.15;
+      min-height: 1.15em;
+      width: 80%;
+      text-align: center;
+      color: var(--accent2);
+      border-bottom: 3px solid rgba(165, 171, 214, 0.35);
+    }
+    .ch.punct { width: calc(var(--cw) * 0.5); }
+    .ch.punct .p { border-bottom-color: transparent; color: var(--muted); }
+    .ch.punct .c { color: var(--muted); }
+    .lvl2 .ch.letter { cursor: pointer; touch-action: manipulation; }
+    .ch.sel { background: rgba(76, 201, 240, 0.22); box-shadow: 0 0 0 2px var(--accent2); }
+    .ch.locked .p { color: var(--good); }
+    .lvl3 .ch.letter .c { color: var(--k); }
+    .lvl3 .ch.letter .p { color: var(--k); border-bottom-color: var(--k); }
+    .msg.solved .ch .p { color: var(--good) !important; border-bottom-color: var(--good) !important; }
+    .msg.solved .ch { animation: hop 0.5s ease-out both; }
+    @keyframes hop { 40% { transform: translateY(-8px); } }
+
+    .hintbox {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: rgba(255, 210, 63, 0.12);
+      border: 1px solid rgba(255, 210, 63, 0.45);
+      font-size: 17px;
+      line-height: 1.4;
+    }
+    .hintbox::before { content: "💡 "; }
+
+    /* ---------- level 1: Caesar wheel ---------- */
+    .stage canvas#wheel {
+      position: relative;
+      inset: auto;
+      width: min(330px, 78vw);
+      height: min(330px, 78vw);
+      touch-action: none;
+      cursor: grab;
+    }
+    .shiftrow { display: flex; align-items: center; gap: 16px; }
+    .shiftrow .btn { min-width: 72px; min-height: 64px; font-size: 26px; }
+    .shiftbox { text-align: center; min-width: 120px; }
+    .shiftbox .label { color: var(--muted); font-size: 15px; }
+    .shiftbox .big { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .shiftbox .map { font-family: ui-monospace, Menlo, monospace; font-size: 17px; color: var(--muted); }
+    .shiftbox .map b { color: var(--accent); }
+    .shiftbox .map i { color: var(--accent2); font-style: normal; font-weight: 700; }
+    .tip { margin: 0; color: var(--muted); font-size: 16px; text-align: center; line-height: 1.4; }
+
+    /* ---------- level 2: keypad + frequency chart ---------- */
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(44px, 54px));
+      gap: 6px;
+      justify-content: center;
+    }
+    .key {
+      min-height: 52px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #2a3066;
+      color: var(--text);
+      font: 800 22px var(--font);
+      touch-action: manipulation;
+      cursor: pointer;
+      transition: transform 0.08s, background 0.15s, opacity 0.15s;
+    }
+    .key:active { transform: scale(0.92); }
+    .key.used { opacity: 0.38; }
+    .key.cur { background: var(--accent2); color: #00151d; opacity: 1; border-color: var(--accent2); }
+    .key.del { grid-column: span 2; font-size: 18px; background: #3a2340; }
+    .freq { width: 100%; }
+    .freq-title { font-size: 15px; color: var(--muted); margin: 6px 0 4px; }
+    .freq-title small { opacity: 0.8; }
+    .bars { display: flex; align-items: flex-end; gap: 2px; height: 120px; }
+    .bar { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; cursor: pointer; }
+    .bar .fill { width: 100%; max-width: 22px; border-radius: 4px 4px 0 0; background: var(--accent); min-height: 2px; transition: height 0.3s; }
+    .bars.eng .fill { background: var(--accent2); }
+    .bar .lab { font: 800 14px ui-monospace, Menlo, monospace; margin-top: 2px; }
+    .bar .gs { font: 800 14px ui-monospace, Menlo, monospace; color: var(--accent2); min-height: 17px; }
+    .bar.sel .lab { color: #00151d; background: var(--accent2); border-radius: 4px; padding: 0 2px; }
+    .bars.eng { height: 100px; }
+
+    /* ---------- level 3: Vigenère keyword wheels ---------- */
+    .wheels { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .kw { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .kw .btn { min-width: 60px; min-height: 52px; font-size: 22px; padding: 0; }
+    .kw .letter {
+      width: 64px;
+      height: 76px;
+      border-radius: 14px;
+      border: 3px solid var(--k);
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font: 800 36px ui-monospace, Menlo, monospace;
+      color: var(--k);
+      touch-action: none;
+      cursor: ns-resize;
+    }
+    .kw .letter small { font: 600 13px var(--font); color: var(--muted); }
+    .kw.locked .letter { box-shadow: 0 0 0 3px var(--good); }
+    .kwword { font-size: 18px; color: var(--muted); }
+    .kwword b { font-family: ui-monospace, Menlo, monospace; color: var(--text); letter-spacing: 3px; }
+    .seg .btn.dim { opacity: 0.4; }
+
+    [hidden] { display: none !important; }
+    /* portrait: tools go full width under the message; wheel and arrows sit side by side */
+    @media (orientation: portrait) and (min-width: 600px) {
+      .tool-panel { flex: 1 1 100%; max-width: 760px; }
+      #caesarTools { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 14px 28px; }
+      #caesarTools .tip { flex-basis: 100%; }
+      .stage canvas#wheel { width: min(300px, 42vw); height: min(300px, 42vw); }
+      #subTools { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+      #subTools { gap: 14px; }
+      #subTools .keypad { grid-template-columns: repeat(7, 48px); }
+      #subTools .freq { flex: 1 1 240px; width: auto; }
+    }
+    @media (max-width: 700px) {
+      .layout { padding: 10px; gap: 10px; }
+      .panel { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="btn" href="../index.html">◀ Home</a>
+    <h1>Code Breaker</h1>
+    <button class="btn math" id="mathBtn">Where's the math?</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="infobar">
+      <span class="lvl" id="levelName">Level 1 · Caesar Shift</span>
+      <span>⏱ <b id="timer">0:00</b></span>
+      <span>💡 Hints: <b id="hints">0</b></span>
+    </div>
+    <div class="scroll" id="scroller">
+      <div class="layout">
+        <section class="panel text-panel">
+          <p class="task" id="task"></p>
+          <div class="legend">
+            <span><span class="sw" style="background:var(--accent)"></span>Secret code</span>
+            <span><span class="sw" style="background:var(--accent2)"></span>Your decoding</span>
+          </div>
+          <div class="msg" id="msg"></div>
+          <div class="hintbox" id="hintBox" hidden></div>
+        </section>
+
+        <section class="panel tool-panel" id="caesarTools">
+          <canvas id="wheel"></canvas>
+          <div class="shiftrow">
+            <button class="btn" id="shiftDown" aria-label="Shift down">◀</button>
+            <div class="shiftbox">
+              <div class="label">Shift</div>
+              <div class="big" id="shiftVal">0</div>
+              <div class="map" id="shiftMap"></div>
+            </div>
+            <button class="btn" id="shiftUp" aria-label="Shift up">▶</button>
+          </div>
+          <p class="tip">Spin the orange wheel (or tap the arrows). Find a secret letter on the orange ring; the letter outside it is the real one.</p>
+        </section>
+
+        <section class="panel tool-panel" id="subTools" hidden>
+          <div class="keypad" id="keypad"></div>
+          <div class="freq">
+            <div class="freq-title">Letters in this secret message <small>(most common first)</small></div>
+            <div class="bars" id="barsMsg"></div>
+            <div class="freq-title">Letters in typical English <small>(most common first)</small></div>
+            <div class="bars eng" id="barsEng"></div>
+          </div>
+        </section>
+
+        <section class="panel tool-panel" id="vigTools" hidden>
+          <div class="group">
+            <span class="label">Keyword length</span>
+            <div class="seg" id="vigLen">
+              <button class="btn small" data-len="3">3</button>
+              <button class="btn small" data-len="4">4</button>
+              <button class="btn small" data-len="5">5</button>
+            </div>
+          </div>
+          <div class="wheels" id="wheels"></div>
+          <div class="kwword">Your keyword: <b id="kwWord">AAA</b></div>
+          <p class="tip">Each keyword letter is its own Caesar shift, and they take turns. Letters with the same color use the same shift. Swipe a letter up or down, or use the arrows.</p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="controls">
+    <div class="seg" id="levels">
+      <button class="btn" data-level="1">1 · Caesar</button>
+      <button class="btn" data-level="2">2 · Swap</button>
+      <button class="btn" data-level="3">3 · Vigenère</button>
+    </div>
+    <div class="sep"></div>
+    <button class="btn primary" id="newBtn">🎲 New message</button>
+    <button class="btn blue" id="hintBtn">💡 Hint</button>
+    <button class="btn" id="revealBtn">👀 Reveal</button>
+  </footer>
+
+  <aside class="drawer" id="drawer">
+    <h2>Secret codes are math</h2>
+    <h3>Caesar shift = clock arithmetic</h3>
+    <p>Number the letters A = 0, B = 1, …, Z = 25. A Caesar cipher just <b>adds</b> the shift to every letter, wrapping around after Z like hours on a clock:</p>
+    <p style="text-align:center" class="math-inline">secret = (letter + shift) mod 26</p>
+    <p>That's <b>modular arithmetic</b>. To decode, subtract the shift. With only 25 possible shifts, you can just try them all!</p>
+    <h3>Why letter swapping fails</h3>
+    <p>A substitution cipher has 26! ≈ 400,000,000,000,000,000,000,000,000 possible keys, way too many to try. But it never hides <b>how often</b> each letter appears. E is the most common English letter, then T, A, O, I, N… Match the most common secret letters to those and the code cracks open. This is <b>frequency analysis</b>, invented by the Arab scholar al-Kindi over 1,100 years ago. (It works even better on long messages.)</p>
+    <h3>Vigenère: taking turns</h3>
+    <p>A keyword like <b>CUBE</b> gives four different shifts that take turns, so the same letter gets disguised in different ways. People called it "the unbreakable cipher" for about 300 years, until Charles Babbage and Friedrich Kasiski cracked it in the 1800s by finding the keyword length first.</p>
+    <h3>Today: giant prime numbers</h3>
+    <p>Every time someone buys something online, <b>RSA</b> and similar systems protect the card number. RSA relies on a simple fact: multiplying two huge prime numbers is easy, but going backwards (<b>factoring</b> the answer) is incredibly hard.</p>
+    <div class="wow">A typical RSA key uses a number over 600 digits long. Factoring it with today's best computers and methods would take far longer than the age of the universe. Your online shopping is protected by number theory!</div>
+    <h3>Where it shows up</h3>
+    <ul>
+      <li>HTTPS (the lock icon), online banking, and chat apps</li>
+      <li>Passwords, digital signatures, and cryptocurrencies</li>
+      <li>Code breakers in World War II helped invent the first computers</li>
+    </ul>
+    <div class="area">Number Theory · Cryptography</div>
+  </aside>
+
+  <script src="../shared/common.js"></script>
+  <script src="cipher.js"></script>
+</body>
+</html>

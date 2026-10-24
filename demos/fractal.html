@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f1226">
+  <title>Fractal Maker</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <style>
+    .stage.split {
+      display: grid;
+      grid-template-columns: minmax(320px, 36%) 1fr;
+      gap: 0;
+    }
+    @media (orientation: portrait) {
+      .stage.split { grid-template-columns: 1fr; grid-template-rows: minmax(300px, 40%) 1fr; }
+    }
+    .editor {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+      background: var(--bg2);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      min-height: 0;
+    }
+    .editor-head { display: flex; align-items: center; gap: 8px; }
+    .editor-head h3 { flex: 1; margin: 0; font-size: 20px; }
+    .editor-head h3 small { display: block; color: var(--muted); font-weight: 400; font-size: 14px; }
+    .ed-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 140px;
+      border-radius: var(--radius);
+      background: var(--bg);
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+    .ed-wrap canvas, .view canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips .btn { min-height: 44px; padding: 0 12px; font-size: 16px; }
+    .view { position: relative; min-height: 0; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="btn" href="../index.html">◀ Home</a>
+    <h1>Fractal Maker</h1>
+    <button class="btn math" id="mathBtn">Where's the math?</button>
+  </header>
+
+  <main class="stage split">
+    <section class="editor">
+      <div class="editor-head">
+        <h3>Your rule ✏️<small>Tap to add a corner · drag to move · tap a corner to remove</small></h3>
+        <button class="btn small" id="edUndo" aria-label="Undo">↶</button>
+        <button class="btn small" id="snap">Snap △</button>
+      </div>
+      <div class="ed-wrap"><canvas id="editor"></canvas></div>
+      <div class="chips" id="presets">
+        <button class="btn" data-p="koch">Koch ❄️</button>
+        <button class="btn" data-p="levy">Lévy C</button>
+        <button class="btn" data-p="dragon">Dragon 🐉</button>
+        <button class="btn" data-p="mink">Minkowski</button>
+        <button class="btn" data-p="cesaro">Cesàro</button>
+        <button class="btn" data-p="arrow">Sierpiński</button>
+        <button class="btn" data-p="clear">Clear</button>
+      </div>
+    </section>
+    <section class="view">
+      <canvas id="view"></canvas>
+      <div class="stat" id="stats"></div>
+    </section>
+  </main>
+
+  <footer class="controls">
+    <div class="group">
+      <span class="label">Start shape</span>
+      <div class="seg" id="base">
+        <button class="btn" data-b="line">— Line</button>
+        <button class="btn" data-b="tri">△</button>
+        <button class="btn" data-b="sq">□</button>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="label">Level</span>
+      <button class="btn small" id="lvDown">−</button>
+      <span class="val" id="lv">0</span>
+      <button class="btn small" id="lvUp">+</button>
+    </div>
+    <button class="btn primary" id="build">▶ Grow it!</button>
+  </footer>
+
+  <aside class="drawer" id="drawer">
+    <h2>Fractals: infinite detail</h2>
+    <p>Your rule says: <b>replace every straight line with a tiny copy of your drawing</b>. Do that again and again, forever, and you get a <b>fractal</b>. Zoom in on any piece and it looks like the whole thing.</p>
+    <h3>Infinite length in a finite space</h3>
+    <p>The Koch rule turns 1 line into 4 lines, each ⅓ as long. So every level the length grows by ×4⁄3.
+      After 100 levels it's over 3 trillion times longer, yet the snowflake still fits on your screen.
+      Its <b>area</b> stays finite (exactly 8⁄5 of the starting triangle).</p>
+    <h3>Dimension 1.26?!</h3>
+    <p>A line is 1-dimensional and a square is 2-dimensional. Fractals sit <i>in between</i>.
+      If your rule makes <span class="math-inline">N</span> copies, each scaled by <span class="math-inline">r</span>, the
+      <b>fractal dimension</b> is</p>
+    <p style="text-align:center" class="math-inline">D = log N ⁄ log(1/r)</p>
+    <p>Koch: log 4 ⁄ log 3 ≈ 1.2619. With pieces of different sizes we solve
+      <span class="math-inline">r₁ᴰ + r₂ᴰ + … = 1</span> instead. That's what the counter on screen does.</p>
+    <div class="wow">How long is the coastline of Britain? It depends on your ruler: the smaller the ruler, the longer the coast. Real coastlines behave like fractals, with dimension about 1.25.</div>
+    <h3>Where fractals show up</h3>
+    <ul>
+      <li>Ferns, broccoli, lungs, blood vessels, lightning, river networks</li>
+      <li>Cell-phone antennas shaped like fractals catch many frequencies</li>
+      <li>Movie CGI mountains and clouds</li>
+    </ul>
+    <div class="area">Geometry · Measure Theory · Dynamical Systems</div>
+  </aside>
+
+  <script src="../shared/common.js"></script>
+  <script src="fractal.js"></script>
+</body>
+</html>

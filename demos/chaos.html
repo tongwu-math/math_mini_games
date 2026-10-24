@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f1226">
+  <title>Chaos Game</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <style>
+    .stage { background: radial-gradient(circle at center, #161a3c 0%, #0a0c1c 75%); }
+    #dots { pointer-events: none; }
+    #hint {
+      white-space: normal;
+      width: max-content;
+      max-width: 92%;
+      color: var(--text);
+      font-size: 19px;
+    }
+    #ratio { width: 150px; }
+    input[type="range"]:disabled { opacity: 0.35; }
+    @media (max-width: 700px) { #ratio { width: 110px; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="btn" href="../index.html">◀ Home</a>
+    <h1>Chaos Game</h1>
+    <button class="btn math" id="mathBtn">Where's the math?</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="dots"></canvas>
+    <canvas id="ui"></canvas>
+    <div class="stat">Dots: <b id="count">0</b></div>
+    <div class="overlay-text bottom" id="hint">Tap anywhere to place 3 to 6 corners</div>
+  </main>
+
+  <footer class="controls">
+    <button class="btn primary" id="play">▶ Play</button>
+    <button class="btn" id="clearDots">✦ Clear dots</button>
+    <button class="btn" id="clearPts">✕ Clear points</button>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="label">Jump</span>
+      <input type="range" id="ratio" min="0.3" max="0.8" step="0.001" value="0.5">
+      <span class="val" id="ratioVal">0.5</span>
+    </div>
+    <button class="btn" id="noRepeat">🚫 No repeats</button>
+    <div class="group">
+      <span class="label">Speed</span>
+      <input type="range" id="speed" min="0" max="100" value="80">
+      <span class="val" id="speedVal">5k</span>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="label">Try</span>
+      <button class="btn small" data-preset="sierpinski">△ Sierpinski</button>
+      <button class="btn small" data-preset="square">□ Square</button>
+      <button class="btn small" data-preset="pentagon">⬠ Pentagon</button>
+      <button class="btn small" data-preset="hexagon">⬡ Hexagon</button>
+      <button class="btn small" data-preset="fern">🌿 Fern</button>
+    </div>
+  </footer>
+
+  <aside class="drawer" id="drawer">
+    <h2>Randomness that makes order</h2>
+    <p>The rule is pure luck: pick a random corner, jump part of the way toward it, drop a dot, repeat. You'd expect a messy cloud. Instead, a perfect fractal appears every single time.</p>
+    <h3>Why does it work?</h3>
+    <p>Each jump is a <b>shrink-toward-a-corner</b> map. With 3 corners and "jump halfway," every map squishes the whole triangle into one of three half-size copies of itself. Copies of copies of copies… that's the <b>Sierpinski triangle</b>.</p>
+    <p>A set of shrinking maps like this is an <b>iterated function system</b>. The shape it settles onto is called its <b>attractor</b>: no matter where you start, the dots get pulled onto it.</p>
+    <h3>Self-similarity</h3>
+    <p>Zoom into a corner of the triangle and you see the whole triangle again. Shapes made of smaller copies of themselves are <b>fractals</b>. The Sierpinski triangle has dimension log 3 / log 2 ≈ 1.585: more than a line, less than a solid area.</p>
+    <h3>The fern</h3>
+    <p>The fern uses 4 maps instead of corners: one makes the stem, one makes the next smaller leaf, and two make the bottom side leaves. Four rules with six numbers each describe the whole plant.</p>
+    <div class="wow">Every game uses different random picks, yet you get the same picture every time. Mathematicians proved that random picks (almost surely) fill in the exact same shape: the attractor depends only on the rules, not on luck.</div>
+    <h3>Where it shows up</h3>
+    <ul>
+      <li>Movie and video game landscapes, trees, and clouds</li>
+      <li>Fractal antennas in phones that catch many frequencies</li>
+      <li>Compressing images by finding copies of themselves</li>
+    </ul>
+    <div class="area">Dynamical Systems · Probability · Fractal Geometry</div>
+  </aside>
+
+  <script src="../shared/common.js"></script>
+  <script src="chaos.js"></script>
+</body>
+</html>

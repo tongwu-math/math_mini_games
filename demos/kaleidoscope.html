@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f1226">
+  <title>Kaleidoscope</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <style>
+    .stage { background: radial-gradient(circle at center, #151a3a 0%, #05060f 75%); }
+    #guides { pointer-events: none; }
+    #hint { top: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: 600; color: var(--text); padding: 14px 26px; }
+    #hint small { display: block; font-size: 16px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+    .swatches { gap: 6px; }
+    .sw {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      background: var(--c);
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform 0.08s;
+    }
+    .sw:active { transform: scale(0.9); }
+    .sw.sel { border-color: #fff; box-shadow: 0 0 0 3px var(--accent2); }
+    .sw[data-c="rainbow"] { background: conic-gradient(#ff4d6d, #ffb703, #c6f432, #2ee6a6, #4cc9f0, #7b61ff, #ff4dd2, #ff4d6d); }
+    /* saved image: allow iPad long-press → Save to Photos */
+    .modal img.allow-callout {
+      display: block;
+      max-width: 100%;
+      max-height: 58vh;
+      margin: 6px auto 0;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      -webkit-touch-callout: default;
+      -webkit-user-select: auto;
+      user-select: auto;
+    }
+    .save-tip { margin: 12px 0 0; font-size: 17px; color: var(--muted); }
+    @media (max-width: 700px) { .sw { width: 38px; height: 38px; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="btn" href="../index.html">◀ Home</a>
+    <h1>Kaleidoscope</h1>
+    <button class="btn math" id="mathBtn">Where's the math?</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="guides"></canvas>
+    <canvas id="art"></canvas>
+    <div class="stat" id="group">Symmetry group <b>D₆</b> · 12 moves</div>
+    <div class="overlay-text" id="hint">✨ Draw with your finger<small>Try two fingers, or two hands!</small></div>
+  </main>
+
+  <footer class="controls">
+    <div class="group">
+      <span class="label">Symmetry</span>
+      <input type="range" id="sym" min="2" max="12" step="1" value="6">
+      <span class="val" id="symVal">6</span>
+    </div>
+    <button class="btn on" id="mirror">⟷ Mirror</button>
+    <div class="group">
+      <span class="label">Brush</span>
+      <input type="range" id="brush" min="2" max="30" step="1" value="8">
+    </div>
+    <div class="group swatches">
+      <button class="sw sel" data-c="rainbow" aria-label="Rainbow"></button>
+      <button class="sw" data-h="330" data-s="100" style="--c: hsl(330,100%,64%)" aria-label="Pink"></button>
+      <button class="sw" data-h="28" data-s="100" style="--c: hsl(28,100%,64%)" aria-label="Orange"></button>
+      <button class="sw" data-h="52" data-s="100" style="--c: hsl(52,100%,64%)" aria-label="Yellow"></button>
+      <button class="sw" data-h="135" data-s="100" style="--c: hsl(135,100%,64%)" aria-label="Green"></button>
+      <button class="sw" data-h="195" data-s="100" style="--c: hsl(195,100%,64%)" aria-label="Blue"></button>
+      <button class="sw" data-h="270" data-s="100" style="--c: hsl(270,100%,70%)" aria-label="Purple"></button>
+      <button class="sw" data-h="0" data-s="0" style="--c: #f4f4ff" aria-label="White"></button>
+    </div>
+    <div class="sep"></div>
+    <button class="btn on" id="guidesBtn">◬ Guides</button>
+    <button class="btn" id="undo">↶ Undo</button>
+    <button class="btn" id="clear">✕ Clear</button>
+    <button class="btn primary" id="save">📷 Save</button>
+  </footer>
+
+  <aside class="drawer" id="drawer">
+    <h2>Symmetry is a group</h2>
+    <p>A <b>symmetry</b> is a move that leaves a picture looking exactly the same. Your kaleidoscope has two kinds:</p>
+    <ul>
+      <li><b>Rotations:</b> turn by 360°/<span class="math-inline">n</span>, or 2 of those, or 3…</li>
+      <li><b>Reflections</b> (with Mirror on): flip across one of the blue lines</li>
+    </ul>
+    <h3>Moves you can combine</h3>
+    <p>Do one symmetry move, then another, and you get a third symmetry move. Every move can be undone. A collection like that is called a <b>group</b>, and studying them is <b>group theory</b>.</p>
+    <p>With just rotations you get the <b>cyclic group</b> <span class="math-inline">C<sub>n</sub></span> with <span class="math-inline">n</span> moves. Add mirrors and you get the <b>dihedral group</b> <span class="math-inline">D<sub>n</sub></span> with <b>2<span class="math-inline">n</span></b> moves: <span class="math-inline">n</span> rotations plus <span class="math-inline">n</span> flips. Every line you draw gets copied once per move.</p>
+    <h3>Symmetry in nature</h3>
+    <ul>
+      <li>Snowflakes: <span class="math-inline">D<sub>6</sub></span>, thanks to how water molecules link up</li>
+      <li>Starfish: <span class="math-inline">D<sub>5</sub></span> · many flowers: <span class="math-inline">D<sub>5</sub></span> or <span class="math-inline">D<sub>6</sub></span></li>
+      <li>Crystals, tiles, and wallpaper patterns</li>
+    </ul>
+    <div class="wow">Any flat pattern that repeats forever in two directions, from bathroom tiles to M.C. Escher art, uses one of exactly 17 symmetry groups. Mathematicians proved there can never be an 18th.</div>
+    <h3>Where it shows up</h3>
+    <ul>
+      <li>Chemistry: molecule shapes predict how they react</li>
+      <li>Physics: symmetries lead to conservation laws</li>
+      <li>Solving the Rubik's Cube is group theory in your hands</li>
+    </ul>
+    <div class="area">Abstract Algebra · Group Theory · Geometry</div>
+  </aside>
+
+  <script src="../shared/common.js"></script>
+  <script src="kaleidoscope.js"></script>
+</body>
+</html>

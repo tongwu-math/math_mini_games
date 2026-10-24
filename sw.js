@@ -1,6 +1,6 @@
 /* Offline support: precache every file, then serve from cache and refresh in the background.
    Bump VERSION after changing the file list. */
-const VERSION = "mp-v1";
+const VERSION = "mp-v2";
 const DEMOS = ["hanoi", "fractal", "fourier", "fluid", "cipher", "kaleidoscope", "chaos", "lightsout", "galton"];
 const FILES = [
   "./",
@@ -11,6 +11,7 @@ const FILES = [
   "icons/icon-180.png",
   "icons/icon-192.png",
   "icons/icon-512.png",
+  "icons/qr.svg",
   ...DEMOS.flatMap((d) => [`demos/${d}.html`, `demos/${d}.js`]),
 ];
 

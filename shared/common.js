@@ -23,7 +23,7 @@
     "touchmove",
     (e) => {
       if (e.touches.length > 1) return e.preventDefault();
-      if (!e.target.closest(".drawer, .scroll, input[type=range]")) e.preventDefault();
+      if (!e.target.closest(".drawer, .scroll, .controls, input[type=range]")) e.preventDefault();
     },
     { passive: false }
   );
@@ -244,8 +244,44 @@
     navigator.serviceWorker.register(isDemo ? "../sw.js" : "sw.js").catch(() => {});
   }
 
+  // ---------- "play on your phone" QR (links to the home page) ----------
+  // Phones (not tablets) get html.is-phone so CSS can hide the QR there.
+  MP.isPhone = /iPhone|iPod|Android.+Mobile|Windows Phone|Mobile.+Firefox/i.test(navigator.userAgent);
+  if (MP.isPhone) document.documentElement.classList.add("is-phone");
+  const isDemoPage = /\/demos\//.test(location.pathname);
+  MP.qrSrc = (isDemoPage ? "../" : "") + "icons/qr.svg";
+  MP.showQR = function () {
+    MP.modal({
+      title: "Play on your phone 📱",
+      html:
+        `<img class="qr-big" src="${MP.qrSrc}" alt="QR code for the Math Playground website">` +
+        `<p>Point your phone's camera at the code.</p>`,
+      buttons: [{ label: "Close", primary: true }],
+    });
+  };
+  function setupQR() {
+    const bar = document.querySelector(".topbar");
+    if (!bar) return;
+    const b = document.createElement("button");
+    b.className = "qr-badge";
+    b.setAttribute("aria-label", "Show QR code to play on your phone");
+    b.innerHTML = `<img src="${MP.qrSrc}" alt="">`;
+    b.addEventListener("click", MP.showQR);
+    bar.appendChild(b);
+  }
+
+  // Short labels for the top-bar buttons on small screens (CSS picks .long or .short).
+  function setupTopbarLabels() {
+    const home = document.querySelector('.topbar a.btn[href$="index.html"]');
+    if (home) home.innerHTML = '◀<span class="long">&nbsp;Home</span>';
+    const math = document.getElementById("mathBtn");
+    if (math) math.innerHTML = '<span class="long">Where\'s the math?</span><span class="short">Math?</span>';
+  }
+
   function init() {
+    setupTopbarLabels();
     setupDrawer();
+    setupQR();
     setupKiosk();
     registerSW();
   }

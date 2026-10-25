@@ -6,6 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0f1226">
   <title>Lights Out</title>
+  <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/icon-180.png">
   <link rel="stylesheet" href="../shared/style.css">
   <style>
     #board {
@@ -87,6 +90,28 @@
       50% { opacity: 1; transform: scale(1.04); }
     }
     #grid.won .cell { animation: winWave 0.6s ease-out both; }
+    .stat .dot { font-style: normal; }
+    @media (max-width: 700px) and (orientation: portrait) {
+      #board { padding-top: 44px; }
+    }
+    /* phone landscape: the stage is wide but short, so stack the stat and help text in a
+       left gutter and let the board use the full height (7×7 cells stay big enough to tap) */
+    @media (max-height: 500px) and (orientation: landscape) {
+      #board { padding: 8px 10px 8px min(150px, 32%); }
+      .stat { max-width: calc(min(150px, 32%) - 12px); }
+      .stat span { display: block; }
+      .stat .dot { display: none; }
+      #hintText {
+        left: 8px;
+        transform: none;
+        width: auto;
+        max-width: calc(min(150px, 32%) - 12px);
+        padding: 6px 10px;
+        border-radius: 10px;
+        text-align: left;
+        font-size: 14px;
+      }
+    }
     @keyframes winWave {
       0% { transform: scale(1); }
       50% { transform: scale(0.85); background: #5be37d; }
@@ -103,7 +128,7 @@
 
   <main class="stage" id="stage">
     <div id="board"><div id="grid"></div></div>
-    <div class="stat">Moves: <b id="moves">0</b> &nbsp;·&nbsp; Lights on: <b id="lit">0</b> &nbsp;·&nbsp; Fewest possible: <b id="best">?</b></div>
+    <div class="stat"><span>Moves: <b id="moves">0</b></span><i class="dot"> &nbsp;·&nbsp; </i><span>Lights on: <b id="lit">0</b></span><i class="dot"> &nbsp;·&nbsp; </i><span>Fewest possible: <b id="best">?</b></span></div>
     <div class="overlay-text bottom" id="hintText">Tap a light to flip it <i>and</i> its 4 neighbors. Turn them all off!</div>
   </main>
 

@@ -5,11 +5,29 @@
   const TAU = Math.PI * 2;
   const COLORS = [[255, 138, 61], [76, 201, 240], [255, 93, 158], [91, 227, 125], [255, 214, 10], [180, 120, 255]];
   const CSS_COLORS = COLORS.map((c) => "rgb(" + c.join(",") + ")");
-  const FERN_COLORS = [[160, 120, 70], [90, 220, 110], [60, 190, 95], [130, 240, 150]];
+  // Barnsley fern: (x, y) → (a·x + b·y + e, c·x + d·y + f), picked with probability p.
+  const FERN = [
+    { a: 0, b: 0, c: 0, d: 0.16, e: 0, f: 0, p: 0.01, name: "Stem", col: [255, 176, 70] },
+    { a: 0.85, b: 0.04, c: -0.04, d: 0.85, e: 0, f: 1.6, p: 0.85, name: "Main leaf", col: [91, 227, 125] },
+    { a: 0.2, b: -0.26, c: 0.23, d: 0.22, e: 0, f: 1.6, p: 0.07, name: "Left leaflet", col: [76, 201, 240] },
+    { a: -0.15, b: 0.28, c: 0.26, d: 0.24, e: 0, f: 0.44, p: 0.07, name: "Right leaflet", col: [255, 93, 158] },
+  ];
+  const FERN_CSS = FERN.map((m) => "rgb(" + m.col.join(",") + ")");
+  const FERN_NATURAL = [[160, 120, 70], [90, 220, 110], [60, 190, 95], [130, 240, 150]];
+  const FERN_BOX = [[-2.2, 0], [2.7, 0], [2.7, 10], [-2.2, 10]]; // the whole fern fits in here
+  const FERN_INTRO_STEPS = 24;
+  function fernPick() {
+    const r = Math.random();
+    return r < 0.01 ? 0 : r < 0.86 ? 1 : r < 0.93 ? 2 : 3;
+  }
+  // fern lives in x in [-2.2, 2.7], y in [0, 10]; map into the normalised screen units
+  const fernNX = (x) => (x - 0.24) * 0.18;
+  const fernNY = (y) => (5 - y) * 0.18;
   const MAX_V = 6;
   const HIT = 36; // px radius for grabbing a vertex
   const CAP = 4e6; // auto-pause after this many dots
   const INTRO_STEPS = 20;
+  const HINT_ROOM = 56; // px kept clear at the bottom so the hint never covers a preset corner
 
   const $ = (id) => document.getElementById(id);
   const dotsCv = $("dots");
@@ -37,36 +55,66 @@
   let img = null, data = null, DW = 0, DH = 0, sx = 1, ox = 0, oy = 0;
   let minX = 0, minY = 0, maxX = -1, maxY = -1;
   let shownCount = -1, shownHint = null;
+  let pausedAt = 0;
+  let fernColored = true; // color each dot by the rule that placed it
+  let showCopies = true; // outline where each rule sends the whole fern
   const dctx = dotsCv.getContext("2d");
+  const legendEl = $("legend");
+  const copiesBtn = $("fernCopies");
+  const colorsBtn = $("fernColors");
 
   // ---------- canvases ----------
   function allocate() {
     const r = dotsCv.getBoundingClientRect();
     W = Math.max(1, Math.round(r.width));
     H = Math.max(1, Math.round(r.height));
+    const hy = Math.max(H / 2, H - HINT_ROOM); // usable height above the hint
     cx = W / 2;
-    cy = H / 2;
-    S = Math.min(W, H) / 2;
+    cy = hy / 2 + 4;
+    S = Math.min(W, hy) / 2;
     // keep vertices on screen after a rotate / resize
-    const lx = (W / 2 - 24) / S, ly = (H / 2 - 24) / S;
+    let moved = false;
+    const lx = (W / 2 - 24) / S, ly0 = (24 - cy) / S, ly1 = (H - 24 - cy) / S;
     verts.forEach((v) => {
-      v.x = MP.clamp(v.x, -lx, lx);
-      v.y = MP.clamp(v.y, -ly, ly);
+      const x = MP.clamp(v.x, -lx, lx), y = MP.clamp(v.y, ly0, ly1);
+      if (x !== v.x || y !== v.y) moved = true;
+      v.x = x;
+      v.y = y;
     });
+    const old = img, osx = sx, oox = ox, ooy = oy;
     if (!img || img.width !== dotsCv.width || img.height !== dotsCv.height) {
       img = dctx.createImageData(dotsCv.width, dotsCv.height);
       data = img.data;
       DW = img.width;
       DH = img.height;
-      count = 0;
-      warm = 30;
-      intro = null;
       minX = DW; minY = DH; maxX = -1; maxY = -1;
     }
     const ddpr = DW / W;
     sx = S * ddpr;
     ox = cx * ddpr;
     oy = cy * ddpr;
+    if (img === old) return;
+    // Resizing the canvas wiped it. Redraw the old dots at the new scale (e.g. rotating
+    // the iPad while paused); start over only if a corner had to move to stay on screen.
+    if (old && count > 0 && !moved) {
+      const tmp = document.createElement("canvas");
+      tmp.width = old.width;
+      tmp.height = old.height;
+      tmp.getContext("2d").putImageData(old, 0, 0);
+      const k = sx / osx;
+      dctx.save();
+      dctx.setTransform(1, 0, 0, 1, 0, 0);
+      dctx.drawImage(tmp, ox - oox * k, oy - ooy * k, old.width * k, old.height * k);
+      dctx.restore();
+      img = dctx.getImageData(0, 0, DW, DH);
+      data = img.data;
+    } else {
+      if (count > 0 || moved) {
+        count = 0;
+        warm = 30;
+      }
+      if (moved) intro = introFade = null;
+    }
   }
   // dot layer capped at 1.5x so full-buffer updates stay fast on iPad
   MP.setupCanvas(dotsCv, allocate, { maxDpr: 1.5 });
@@ -120,17 +168,14 @@
   function runDots(n) {
     if (mode === "fern") {
       let x = px, y = py;
+      const cols = fernColored ? FERN.map((m) => m.col) : FERN_NATURAL;
       for (let k = 0; k < n; k++) {
-        const r = Math.random();
-        let nx, ny, c;
-        if (r < 0.01) { nx = 0; ny = 0.16 * y; c = 0; }
-        else if (r < 0.86) { nx = 0.85 * x + 0.04 * y; ny = -0.04 * x + 0.85 * y + 1.6; c = 1; }
-        else if (r < 0.93) { nx = 0.2 * x - 0.26 * y; ny = 0.23 * x + 0.22 * y + 1.6; c = 2; }
-        else { nx = -0.15 * x + 0.28 * y; ny = 0.26 * x + 0.24 * y + 0.44; c = 3; }
-        x = nx; y = ny;
+        const c = fernPick(), m = FERN[c];
+        const nx = m.a * x + m.b * y + m.e;
+        y = m.c * x + m.d * y + m.f;
+        x = nx;
         if (warm > 0) { warm--; continue; }
-        // fern lives in x in [-2.2, 2.7], y in [0, 10]; map into the screen
-        plot((x - 0.24) * 0.18, (5 - y) * 0.18, FERN_COLORS[c]);
+        plot(fernNX(x), fernNY(y), cols[c]);
       }
       px = x; py = y;
     } else {
@@ -148,6 +193,13 @@
 
   // ---------- slow-motion intro: the first 20 jumps, one at a time ----------
   function startIntro() {
+    if (mode === "fern") {
+      // (0, 0) is already on the fern (the stem rule keeps it there), so no warm-up is needed
+      px = 0; py = 0; warm = 0;
+      intro = { i: 0, cur: null, last: -1, steps: FERN_INTRO_STEPS, dots: [{ x: fernNX(0), y: fernNY(0) }] };
+      introFade = null;
+      return;
+    }
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     verts.forEach((v) => {
       x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x);
@@ -156,7 +208,7 @@
     px = MP.lerp(x0, x1, 0.15 + Math.random() * 0.7);
     py = MP.lerp(y0, y1, 0.15 + Math.random() * 0.7);
     lastV = -1;
-    intro = { i: 0, cur: null, dots: [{ x: px, y: py }] };
+    intro = { i: 0, cur: null, last: -1, steps: INTRO_STEPS, dots: [{ x: px, y: py }] };
     introFade = null;
   }
 
@@ -168,25 +220,46 @@
   }
 
   function stepIntro(now) {
+    const fern = mode === "fern";
     if (!intro.cur) {
-      const j = pickVertex();
-      intro.cur = {
-        v: j,
-        p: { x: px, y: py },
-        q: { x: px + (verts[j].x - px) * ratio, y: py + (verts[j].y - py) * ratio },
-        t0: now,
-        dur: Math.max(90, 650 * Math.pow(0.83, intro.i)),
-      };
+      if (fern) {
+        const k = fernPick(), m = FERN[k];
+        const qx = m.a * px + m.b * py + m.e, qy = m.c * px + m.d * py + m.f;
+        intro.cur = {
+          v: k,
+          p: { x: fernNX(px), y: fernNY(py) },
+          q: { x: fernNX(qx), y: fernNY(qy) },
+          qm: { x: qx, y: qy },
+          t0: now,
+          dur: Math.max(110, 1100 * Math.pow(0.86, intro.i)), // slower: there's more to read
+        };
+      } else {
+        const j = pickVertex();
+        intro.cur = {
+          v: j,
+          p: { x: px, y: py },
+          q: { x: px + (verts[j].x - px) * ratio, y: py + (verts[j].y - py) * ratio },
+          t0: now,
+          dur: Math.max(90, 650 * Math.pow(0.83, intro.i)),
+        };
+      }
+      intro.last = intro.cur.v;
     }
     const c = intro.cur;
     if (now - c.t0 >= c.dur) {
-      px = c.q.x;
-      py = c.q.y;
-      plot(px, py, COLORS[c.v]);
+      if (fern) {
+        px = c.qm.x;
+        py = c.qm.y;
+        plot(c.q.x, c.q.y, fernColored ? FERN[c.v].col : FERN_NATURAL[c.v]);
+      } else {
+        px = c.q.x;
+        py = c.q.y;
+        plot(px, py, COLORS[c.v]);
+      }
       flush();
       intro.dots.push(c.q);
       intro.cur = null;
-      if (++intro.i >= INTRO_STEPS) stopIntro(now);
+      if (++intro.i >= intro.steps) stopIntro(now);
     }
   }
 
@@ -194,9 +267,116 @@
   const sxp = (x) => cx + x * S;
   const syp = (y) => cy + y * S;
 
+  // Fern mode: outline the whole fern, the 4 smaller copies the rules map it onto,
+  // and (during the slow intro) each jump in its rule's color.
+  function drawFernUI(now) {
+    const ctx = uctx;
+    ctx.lineCap = ctx.lineJoin = "round";
+    const cur = intro && intro.cur ? intro.cur.v : -1;
+    const P = (x, y) => [sxp(fernNX(x)), syp(fernNY(y))];
+    if (showCopies) {
+      ctx.setLineDash([6, 8]);
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      FERN_BOX.forEach(([x, y], i) => (i ? ctx.lineTo(...P(x, y)) : ctx.moveTo(...P(x, y))));
+      ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      FERN.forEach((m, k) => {
+        const pts = FERN_BOX.map(([x, y]) => P(m.a * x + m.b * y + m.e, m.c * x + m.d * y + m.f));
+        const on = k === cur;
+        ctx.beginPath();
+        pts.forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q)));
+        ctx.closePath();
+        ctx.globalAlpha = on ? 0.28 : cur >= 0 ? 0.05 : 0.1;
+        ctx.fillStyle = FERN_CSS[k];
+        ctx.fill();
+        ctx.globalAlpha = on || cur < 0 ? 1 : 0.35;
+        ctx.strokeStyle = FERN_CSS[k];
+        ctx.lineWidth = k === 0 ? (on ? 7 : 5) : on ? 3.5 : 2; // the stem copy is squashed flat
+        ctx.stroke();
+        // number tag at the copy's centre
+        const mx = pts.reduce((s, q) => s + q[0], 0) / 4, my = pts.reduce((s, q) => s + q[1], 0) / 4;
+        const tx = k === 0 ? mx - 16 : mx, ty = my;
+        ctx.globalAlpha = on || cur < 0 ? 1 : 0.5;
+        ctx.fillStyle = FERN_CSS[k];
+        ctx.beginPath();
+        ctx.arc(tx, ty, on ? 13 : 10, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = "#0f1226";
+        ctx.font = "800 " + (on ? 15 : 12) + "px -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(k + 1), tx, ty + 1);
+        ctx.globalAlpha = 1;
+      });
+    }
+    const dots = intro ? intro.dots : introFade ? introFade.dots : null;
+    if (dots) {
+      const a = intro ? 0.9 : 1 - (now - introFade.t0) / 900;
+      if (a <= 0) introFade = null;
+      else {
+        ctx.fillStyle = "rgba(255,255,255," + (0.9 * a).toFixed(3) + ")";
+        dots.forEach((d) => {
+          ctx.beginPath();
+          ctx.arc(sxp(d.x), syp(d.y), 3.5, 0, TAU);
+          ctx.fill();
+        });
+      }
+    }
+    if (intro && intro.cur) {
+      const c = intro.cur;
+      const u = MP.clamp((now - c.t0) / c.dur, 0, 1);
+      const a1 = MP.clamp(u / 0.3, 0, 1);
+      const a2 = MP.clamp((u - 0.3) / 0.7, 0, 1);
+      const e = a2 * a2 * (3 - 2 * a2);
+      ctx.setLineDash([5, 6]);
+      ctx.strokeStyle = "rgba(255,255,255," + (0.7 * a1).toFixed(3) + ")";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sxp(c.p.x), syp(c.p.y));
+      ctx.lineTo(sxp(c.q.x), syp(c.q.y));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = FERN_CSS[c.v];
+      ctx.lineWidth = 2.5;
+      ctx.globalAlpha = a1;
+      ctx.beginPath();
+      ctx.arc(sxp(c.q.x), syp(c.q.y), 8, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      const mx = MP.lerp(c.p.x, c.q.x, e), my = MP.lerp(c.p.y, c.q.y, e);
+      ctx.fillStyle = FERN_CSS[c.v];
+      ctx.beginPath();
+      ctx.arc(sxp(mx), syp(my), 9, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(sxp(mx), syp(my), 4, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  function updateLegend() {
+    const show = mode === "fern";
+    legendEl.hidden = !show;
+    if (!show) return;
+    const cur = intro ? intro.last : -1;
+    const key = cur + "|" + fernColored;
+    if (legendEl.dataset.key === key) return;
+    legendEl.dataset.key = key;
+    legendEl.innerHTML = FERN.map(
+      (m, k) =>
+        `<div class="row${cur >= 0 && k !== cur ? " dim" : ""}"><span class="chip" style="background:${FERN_CSS[k]}">${k + 1}</span>` +
+        `${m.name}<span class="pct">${Math.round(m.p * 100)}%</span></div>`
+    ).join("");
+  }
+
   function drawUI(now) {
     const ctx = uctx;
     ctx.clearRect(0, 0, ui.w, ui.h);
+    if (mode === "fern") return drawFernUI(now);
     if (mode !== "vertex") return;
     ctx.lineCap = ctx.lineJoin = "round";
 
@@ -295,7 +475,13 @@
     return Math.round(ratio * 100) + "% of the way";
   }
   function hintText() {
-    if (mode === "fern") return !playing && count === 0 ? "Press ▶ Play to grow a fern" : "";
+    if (mode === "fern") {
+      if (intro && intro.last >= 0) {
+        const m = FERN[intro.last];
+        return `Rule ${intro.last + 1} · ${m.name} (${Math.round(m.p * 100)}% of picks): move the dot into copy ${intro.last + 1}`;
+      }
+      return !playing && count === 0 ? "Press ▶ Play to grow a fern" : "";
+    }
     if (verts.length < 3) {
       return verts.length ? "Tap to add more corners (need at least 3)" : "Tap anywhere to place 3 to 6 corners";
     }
@@ -318,6 +504,7 @@
 
   // ---------- main loop ----------
   function frame(now) {
+    requestAnimationFrame(frame); // first, so one bad frame can't stop the loop
     if (needClear) doClear();
     if (playing) {
       if (intro) stepIntro(now);
@@ -327,13 +514,16 @@
         MP.toast("Paused at 4 million dots ✨");
       }
     }
-    drawUI(now);
+    drawUI(playing || !intro ? now : pausedAt); // a paused intro freezes mid-jump
     updateText();
-    requestAnimationFrame(frame);
+    updateLegend();
   }
 
   // ---------- controls ----------
   function setPlaying(on) {
+    const now = performance.now();
+    if (on && !playing && intro && intro.cur) intro.cur.t0 += now - pausedAt; // resume mid-jump
+    if (!on && playing) pausedAt = now;
     playing = on;
     playBtn.textContent = on ? "❚❚ Pause" : "▶ Play";
     playBtn.classList.toggle("primary", !on);
@@ -345,11 +535,8 @@
       MP.toast("Tap at least 3 corners first");
       return;
     }
-    if (needClear) doClear();
-    if (count === 0) {
-      if (mode === "vertex") startIntro();
-      else { px = 0; py = 0; warm = 20; }
-    }
+    if (needClear || count >= CAP) doClear(); // at the 4M cap, Play starts a fresh picture
+    if (count === 0) startIntro();
     setPlaying(true);
   }
 
@@ -362,6 +549,7 @@
   });
 
   $("clearPts").addEventListener("click", () => {
+    drag = null; // a finger may still be holding a corner (multi-touch)
     setPlaying(false);
     intro = introFade = null;
     verts = [];
@@ -402,7 +590,21 @@
     mode = m;
     ratioIn.disabled = m === "fern";
     noRepBtn.disabled = m === "fern";
+    copiesBtn.hidden = colorsBtn.hidden = m !== "fern";
+    updateLegend();
   }
+
+  copiesBtn.addEventListener("click", () => {
+    showCopies = !showCopies;
+    copiesBtn.classList.toggle("on", showCopies);
+  });
+  colorsBtn.addEventListener("click", () => {
+    fernColored = !fernColored;
+    colorsBtn.classList.toggle("on", fernColored);
+    colorsBtn.textContent = fernColored ? "🎨 Rule colors" : "🌿 Natural";
+    legendEl.dataset.key = "";
+    if (count > 0) needClear = true; // redraw the dots in the new colors (keeps playing)
+  });
 
   function setRatio(r) {
     ratioIn.value = r;
@@ -432,6 +634,7 @@
   };
 
   function preset(name) {
+    drag = null;
     setPlaying(false);
     intro = introFade = null;
     if (name === "fern") {
@@ -494,6 +697,7 @@
   });
   uiCv.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.id) return;
+    if (mode !== "vertex" || drag.idx >= verts.length) { drag = null; return; }
     verts[drag.idx] = toNorm(MP.pos(e, uiCv));
     changed();
   });
@@ -502,6 +706,7 @@
   };
   uiCv.addEventListener("pointerup", endDrag);
   uiCv.addEventListener("pointercancel", endDrag);
+  uiCv.addEventListener("lostpointercapture", endDrag);
 
   setMode("vertex");
   requestAnimationFrame(frame);

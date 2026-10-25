@@ -6,6 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0f1226">
   <title>Code Breaker</title>
+  <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/icon-180.png">
   <link rel="stylesheet" href="../shared/style.css">
   <style>
     .stage { display: flex; flex-direction: column; }
@@ -197,9 +200,25 @@
       #subTools .keypad { grid-template-columns: repeat(7, 48px); }
       #subTools .freq { flex: 1 1 240px; width: auto; }
     }
-    @media (max-width: 700px) {
+    @media (max-width: 700px), (max-height: 500px) {
       .layout { padding: 10px; gap: 10px; }
       .panel { padding: 12px; }
+      .infobar { font-size: 15px; gap: 4px 14px; padding: 5px 10px; }
+      .task { font-size: 16px; }
+      .msg { gap: 10px calc(var(--cw) * 0.5); }
+      /* level 2 letters are tapped: make them as wide as the longest word (10 letters) allows */
+      .msg.lvl2 { --cw: clamp(27px, calc((100vw - 52px) / 10.3), 34px); }
+      .keypad { grid-template-columns: repeat(7, minmax(36px, 54px)); gap: 5px; }
+      /* five keyword wheels fit on one row */
+      .wheels { gap: 8px; }
+      .kw .btn { min-width: 56px; min-height: 48px; }
+      .kw .letter { width: 56px; height: 68px; font-size: 30px; }
+      /* arrows right under the message (visible without scrolling); wheel below them */
+      #caesarTools .shiftrow { order: -1; }
+      .stage canvas#wheel { width: min(300px, 78vw, 44vh); height: min(300px, 78vw, 44vh); }
+    }
+    @media (max-height: 500px) {
+      .stage canvas#wheel { width: min(260px, 70vh); height: min(260px, 70vh); }
     }
   </style>
 </head>
@@ -239,7 +258,7 @@
             </div>
             <button class="btn" id="shiftUp" aria-label="Shift up">▶</button>
           </div>
-          <p class="tip">Spin the orange wheel (or tap the arrows). Find a secret letter on the orange ring; the letter outside it is the real one.</p>
+          <p class="tip">Drag the letters to spin the orange wheel (or tap the arrows). Find a secret letter on the orange ring; the letter outside it is the real one.</p>
         </section>
 
         <section class="panel tool-panel" id="subTools" hidden>

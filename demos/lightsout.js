@@ -154,7 +154,16 @@ if (typeof document !== "undefined") (function () {
   let showSol = false;
   let hintIdx = -1;
   let won = false;
+  let winTimer = 0;
   let solution = null;
+  const HELP = "Tap a light to flip it <i>and</i> its 4 neighbors. Turn them all off!";
+
+  // Bottom help line for the current state (a Hint sets its own text until the next press).
+  function setHelp() {
+    if (won) hintText.innerHTML = "Solved! Tap <b>✨ New puzzle</b> to play again.";
+    else if (showSol) hintText.textContent = "Press every ringed light once, in any order!";
+    else hintText.innerHTML = HELP;
+  }
 
   function layout() {
     const cs = getComputedStyle(boardWrap);
@@ -210,6 +219,7 @@ if (typeof document !== "undefined") (function () {
   }
 
   function restart() {
+    clearTimeout(winTimer); // a pending win modal must not pop up over the new board
     board = start.slice();
     moves = 0;
     hintsUsed = 0;
@@ -219,16 +229,21 @@ if (typeof document !== "undefined") (function () {
     const sol = L.solve(board, n);
     bestEl.textContent = sol ? L.countOn(sol) : "?";
     render();
-    hintText.innerHTML = "Tap a light to flip it <i>and</i> its 4 neighbors. Turn them all off!";
+    setHelp();
   }
 
   function doPress(i) {
-    if (won) return;
+    if (won) {
+      // the win modal can be dismissed by tapping the backdrop, so say what to do next
+      MP.toast("Solved! Tap ✨ New puzzle or ⟲ Restart");
+      return;
+    }
     L.press(board, n, i);
     moves++;
     L.affected(n, i).forEach((j) => animate(cells[j], j === i ? "pop" : "pop2"));
     if (hintIdx !== -1) {
       hintIdx = -1;
+      setHelp(); // drop the stale "Press the pulsing light!" text
     }
     render();
     if (L.isSolved(board)) win();
@@ -236,8 +251,10 @@ if (typeof document !== "undefined") (function () {
 
   function win() {
     won = true;
+    setHelp();
     const best = bestEl.textContent;
-    setTimeout(() => {
+    clearTimeout(winTimer);
+    winTimer = setTimeout(() => {
       grid.classList.add("won");
       cells.forEach((c, i) => (c.style.animationDelay = ((i % n) + Math.floor(i / n)) * 40 + "ms"));
       MP.confetti();
@@ -291,7 +308,7 @@ if (typeof document !== "undefined") (function () {
     showSol = !showSol;
     solBtn.classList.toggle("on", showSol);
     solBtn.textContent = showSol ? "Hide solution" : "Show solution";
-    if (showSol) hintText.textContent = "Press every ringed light once, in any order!";
+    if (hintIdx === -1) setHelp();
     render();
   };
 

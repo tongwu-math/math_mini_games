@@ -20,6 +20,7 @@
   let solving = false;
   let solveToken = 0;
   let won = false;
+  let gameId = 0;    // bumps on every new game (stale win popups check it)
   let geom = null;   // layout numbers
 
   // ---------- layout ----------
@@ -27,7 +28,7 @@
     const W = board.clientWidth, H = board.clientHeight;
     const colW = W / 3;
     const baseY = H - 70;
-    const diskH = Math.min(46, (H - 170) / (MAX_N + 1.5));
+    const diskH = Math.max(10, Math.min(46, (H - 170) / (n + 1.5))); // fill short (phone-landscape) boards
     const pegH = diskH * (n + 1.2);
     const maxW = Math.min(colW * 0.92, 340);
     const minW = Math.max(maxW * 0.28, 50);
@@ -99,6 +100,9 @@
     solveToken++;
     solving = false;
     won = false;
+    gameId++;
+    cancelDrag();
+    selected = null;
     pegs = [[], [], []];
     for (let s = n; s >= 1; s--) pegs[0].push(s);
     history = [];
@@ -146,7 +150,9 @@
       }
       MP.confetti();
       const perfect = moves === best;
+      const id = gameId;
       setTimeout(() => {
+        if (id !== gameId || !won) return; // restarted or undone meanwhile
         MP.modal({
           title: perfect ? "Perfect! 🏆" : "You did it! 🎉",
           html: perfect
@@ -163,14 +169,16 @@
 
   // ---------- animation ----------
   // Lift → slide → drop along a 3-leg path.
-  function animateTo(el, tx, ty, ms) {
+  function animateTo(el, tx, ty, ms, token) {
     return new Promise((resolve) => {
+      el.classList.remove("snap"); // a CSS transition would fight the per-frame moves
       const sx = el._x, sy = el._y;
       const ly = Math.min(geom.liftY, sy, ty);
       const d1 = Math.abs(sy - ly), d2 = Math.abs(tx - sx), d3 = Math.abs(ty - ly);
       const total = d1 + d2 + d3 || 1;
       const t0 = performance.now();
       (function frame(t) {
+        if (token !== solveToken) return resolve(); // stopped / restarted: leave the disk alone
         let k = Math.min(1, (t - t0) / ms);
         k = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2; // ease in-out
         let dist = k * total, x, y;
@@ -209,17 +217,22 @@
   }
   MP.hanoiSolve = solveMoves; // exposed for testing
 
+  // Stop auto-solve and drop the disk that was mid-flight back where the state says it is.
+  function stopSolve() {
+    if (!solving) return;
+    solveToken++;
+    solving = false;
+    for (const el of diskEls) if (el) el.classList.add("snap");
+    placeAll();
+    updateUI();
+  }
+
   async function autoSolve() {
-    if (solving) {
-      solveToken++;
-      solving = false;
-      updateUI();
-      return;
-    }
+    if (solving) return stopSolve();
     // Finish on whichever goal peg already holds more of the tower; default to the right peg.
     const target = pegs[1].length > pegs[2].length ? 1 : 2;
     const plan = solveMoves(pegs, target);
-    if (!plan.length) return;
+    if (!plan.length) return MP.toast("Already solved! Tap Restart to play again.");
     solving = true;
     usedAuto = true;
     const token = ++solveToken;
@@ -229,9 +242,10 @@
       const s = top(m.from);
       const el = diskEls[s];
       const { x, y } = restXY(s, m.to, pegs[m.to].length);
-      await animateTo(el, x, y, speedMs());
+      await animateTo(el, x, y, speedMs(), token);
       if (token !== solveToken) return;
       doMove(m.from, m.to);
+      if (el !== diskEls[s]) placeAll(); // board was rebuilt (resize) mid-move
     }
     solving = false;
     updateUI();
@@ -261,7 +275,7 @@
     const el = diskEls[s];
     el.classList.remove("snap");
     el.classList.add("lifted");
-    board.setPointerCapture(e.pointerId);
+    try { board.setPointerCapture(e.pointerId); } catch (_) { /* pointer already gone */ }
     drag = { from: peg, el, dx: p.x - el._x, dy: p.y - el._y, startX: p.x, startY: p.y, moved: false, id: e.pointerId };
     hintEl.style.opacity = 0;
   });
@@ -291,12 +305,37 @@
     tryMove(d.from, pegAt(p.x));
   }
   board.addEventListener("pointerup", endDrag);
-  board.addEventListener("pointercancel", endDrag);
+  // Interrupted (system gesture, lost capture): put the disk back, don't treat it as a tap or a drop.
+  function abortDrag(e) {
+    if (drag && e.pointerId === drag.id) cancelDrag();
+  }
+  board.addEventListener("pointercancel", abortDrag);
+  board.addEventListener("lostpointercapture", abortDrag);
+
+  function cancelDrag() {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    try { board.releasePointerCapture(d.id); } catch (_) { /* already released */ }
+    d.el.classList.remove("lifted");
+    d.el.classList.add("snap");
+    const s = top(d.from);
+    if (s && diskEls[s] === d.el) {
+      const { x, y } = restXY(s, d.from, pegs[d.from].length - 1);
+      setXY(d.el, x, y);
+    }
+  }
 
   function clearSelection() {
     if (selected === null) return;
     const s = top(selected);
-    if (s) diskEls[s].classList.remove("lifted");
+    if (s) {
+      const el = diskEls[s];
+      el.classList.remove("lifted");
+      el.classList.add("snap");
+      const { x, y } = restXY(s, selected, pegs[selected].length - 1);
+      setXY(el, x, y);
+    }
     selected = null;
   }
 
@@ -330,6 +369,7 @@
   document.getElementById("reset").onclick = newGame;
   document.getElementById("undo").onclick = () => {
     if (solving || !history.length) return;
+    cancelDrag();
     clearSelection();
     const m = history.pop();
     doMove(m.to, m.from, false);
@@ -339,16 +379,16 @@
     placeAll();
     updateUI();
   };
-  solveBtn.onclick = () => { clearSelection(); autoSolve(); };
+  solveBtn.onclick = () => { cancelDrag(); clearSelection(); autoSolve(); };
 
   let resizeTimer;
   new ResizeObserver(() => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       if (!pegs) return;
-      if (solving) { solveToken++; solving = false; updateUI(); }
-      clearSelection();
-      build();
+      cancelDrag();
+      selected = null;
+      build(); // an auto-solve in progress carries on with the new elements
     }, 60);
   }).observe(board);
 

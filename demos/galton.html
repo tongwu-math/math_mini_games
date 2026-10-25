@@ -6,6 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0f1226">
   <title>Galton Board</title>
+  <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/icon-180.png">
   <link rel="stylesheet" href="../shared/style.css">
   <style>
     #legend {
@@ -26,6 +29,12 @@
     #legend i { display: inline-block; width: 26px; height: 4px; border-radius: 2px; background: #fff; box-shadow: 0 0 6px #ff5d9e; }
     #lean { width: 150px; }
     .val.wide { min-width: 4.6em; }
+    /* phones: keep the stat box narrow so it clears the legend and the hopper */
+    @media (max-width: 700px) {
+      #expMean { display: block; }
+      #legend { top: 8px; right: 8px; font-size: 14px; padding: 4px 8px; }
+      #legend i { width: 18px; }
+    }
   </style>
 </head>
 <body>
@@ -38,7 +47,7 @@
   <main class="stage" id="stage">
     <canvas id="c"></canvas>
     <div class="stat">Balls: <b id="total">0</b><br>Average bin: <b id="mean">–</b> <span id="expMean"></span></div>
-    <div id="legend"><i></i> Expected (bell curve)</div>
+    <div id="legend"><i></i><span class="long">Expected (bell curve)</span><span class="short">Bell curve</span></div>
   </main>
 
   <footer class="controls">

@@ -85,9 +85,12 @@
   const tip = document.getElementById("tip");
   const stat = document.getElementById("stat");
   const countEl = document.getElementById("count");
+  const countWord = document.getElementById("countWord");
 
   // state (declared before setupCanvas so callbacks never hit uninitialised vars)
   let cx = 0, cy = 0, S = 1;
+  let R = 1; // render scale: S, shrunk if the shape (e.g. drawn before a rotation) wouldn't fit
+  let ext = { x: 0, y: 0 }; // shape's max |x|, |y| in normalised units
   let raw = null; // in-progress finger stroke (CSS px)
   let drawId = null;
   let shape = null; // N resampled points, normalised (relative to centre, units of S)
@@ -105,6 +108,13 @@
     cx = w / 2;
     cy = h / 2;
     S = Math.min(w, h) / 2;
+    fitShape();
+  }
+  // A shape drawn on this screen already fits (R = S); after a resize/rotation shrink it to stay visible.
+  function fitShape() {
+    R = S;
+    if (ext.x * R > cx) R = cx / ext.x;
+    if (ext.y * R > cy) R = cy / ext.y;
   }
   const view = MP.setupCanvas(canvas, geom);
   geom(view.w, view.h);
@@ -117,6 +127,7 @@
     (v) => {
       count = sliderToCount(v);
       countEl.textContent = count;
+      countWord.textContent = count === 1 ? "circle" : "circles";
       if (terms) {
         computePath();
         if (v < 100 && !sliderTouched) {
@@ -141,6 +152,12 @@
   function setShape(pts) {
     shape = FM.resample(pts, N);
     terms = FM.dft(shape);
+    ext = { x: 0, y: 0 };
+    shape.forEach((p) => {
+      ext.x = Math.max(ext.x, Math.abs(p.x));
+      ext.y = Math.max(ext.y, Math.abs(p.y));
+    });
+    fitShape();
     elapsed = 0;
     computePath();
     hint.hidden = true;
@@ -269,10 +286,11 @@
   }
   canvas.addEventListener("pointerup", (e) => endDraw(e, false));
   canvas.addEventListener("pointercancel", (e) => endDraw(e, true));
+  canvas.addEventListener("lostpointercapture", (e) => endDraw(e, true)); // no-op after a normal pointerup
 
   // ---------- rendering ----------
-  const X = (x) => cx + x * S;
-  const Y = (y) => cy + y * S;
+  const X = (x) => cx + x * R;
+  const Y = (y) => cy + y * R;
 
   function drawAxes(w, h) {
     ctx.strokeStyle = "rgba(255,255,255,0.06)";
@@ -328,8 +346,8 @@
     for (let k = 0; k < count; k++) {
       const T = terms[k];
       const a = T.f * ang + T.phase;
-      jx[k + 1] = jx[k] + T.amp * S * Math.cos(a);
-      jy[k + 1] = jy[k] + T.amp * S * Math.sin(a);
+      jx[k + 1] = jx[k] + T.amp * R * Math.cos(a);
+      jy[k + 1] = jy[k] + T.amp * R * Math.sin(a);
     }
     const tipX = jx[count], tipY = jy[count];
 
@@ -366,7 +384,7 @@
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let k = 0; k < count; k++) {
-      const r = terms[k].amp * S;
+      const r = terms[k].amp * R;
       if (terms[k].f === 0 || r < 0.8) continue;
       ctx.moveTo(jx[k] + r, jy[k]);
       ctx.arc(jx[k], jy[k], r, 0, TAU);

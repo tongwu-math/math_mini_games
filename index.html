@@ -9,6 +9,8 @@
   <meta name="apple-mobile-web-app-title" content="Math Play">
   <meta name="theme-color" content="#0f1226">
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <title>Math Playground</title>
   <link rel="stylesheet" href="shared/style.css">
@@ -126,6 +128,14 @@
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
+    .credit {
+      margin: 28px 0 0;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      opacity: 0.8;
+    }
+    .credit a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
   </style>
 </head>
 <body>
@@ -175,6 +185,9 @@
         <h2>Galton Board</h2><p>Drop balls through pegs and watch a bell curve appear.</p>
       </a>
     </nav>
+    <footer class="credit">
+      Made by <a href="https://tongwu-math.github.io/" target="_blank" rel="noopener">Tong Wu</a> with Claude
+    </footer>
   </div>
   <script src="shared/common.js"></script>
   <script>document.getElementById("qrCard").onclick = MP.showQR;</script>

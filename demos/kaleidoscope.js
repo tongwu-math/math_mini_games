@@ -224,6 +224,9 @@
   }
   cv.addEventListener("pointerup", endStroke);
   cv.addEventListener("pointercancel", endStroke);
+  // capture lost without an up (e.g. the page lost focus): finish the stroke so a hovering
+  // mouse (same pointerId next time) doesn't keep painting
+  cv.addEventListener("lostpointercapture", endStroke);
 
   // ---------- controls ----------
   MP.slider("sym", (v) => {

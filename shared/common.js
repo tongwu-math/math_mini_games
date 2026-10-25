@@ -9,16 +9,8 @@
   ["gesturestart", "gesturechange", "gestureend"].forEach((t) =>
     document.addEventListener(t, (e) => e.preventDefault(), { passive: false })
   );
-  let lastTouchEnd = 0;
-  document.addEventListener(
-    "touchend",
-    (e) => {
-      const now = Date.now();
-      if (now - lastTouchEnd < 350 && !e.target.closest("input, textarea")) e.preventDefault();
-      lastTouchEnd = now;
-    },
-    { passive: false }
-  );
+  // Double-tap zoom is turned off with CSS (touch-action: manipulation in style.css),
+  // so quick repeated taps on buttons still fire every click.
   document.addEventListener(
     "touchmove",
     (e) => {
@@ -113,6 +105,8 @@
       modalEl = document.createElement("div");
       modalEl.className = "modal";
       modalEl.innerHTML = '<div class="card"></div>';
+      // tapping the dark backdrop (not the card) closes it
+      modalEl.addEventListener("click", (e) => e.target === modalEl && MP.closeModal());
       document.body.appendChild(modalEl);
     }
     const card = modalEl.firstChild;
@@ -277,6 +271,13 @@
     const math = document.getElementById("mathBtn");
     if (math) math.innerHTML = '<span class="long">Where\'s the math?</span><span class="short">Math?</span>';
   }
+
+  // Esc closes the explainer and any pop-up (laptops / keyboards).
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    MP.closeModal();
+    if (MP.closeDrawer) MP.closeDrawer();
+  });
 
   function init() {
     setupTopbarLabels();

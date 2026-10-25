@@ -211,11 +211,16 @@
 
   // ---------- generator editor ----------
   const ed = MP.setupCanvas(edCanvas, () => drawEditor());
+  // Fit the unit segment so corners from y = -0.26 to y = +0.52 (all presets) stay on screen,
+  // with room for the start/end labels underneath; centre it horizontally.
+  const ED_UP = 0.52, ED_DOWN = 0.26, ED_M = 16, ED_LABEL = 36;
   function edFrame() {
     const { w, h } = ed;
     const pad = Math.max(28, w * 0.1);
-    const unit = w - 2 * pad;
-    return { pad, unit, ax: pad, ay: h * 0.58 };
+    const unit = Math.max(40, Math.min(w - 2 * pad, (h - 2 * ED_M) / (ED_UP + ED_DOWN), (h - ED_M - ED_LABEL) / ED_UP));
+    const below = Math.max(ED_DOWN * unit + ED_M, ED_LABEL);
+    const slack = Math.max(0, h - ED_M - ED_UP * unit - below);
+    return { pad, unit, ax: (w - unit) / 2, ay: ED_M + ED_UP * unit + slack * 0.6 };
   }
   function toScreen(p) {
     const f = edFrame();
@@ -248,18 +253,19 @@
     // grid dots
     if (snapMode) {
       ctx.fillStyle = "rgba(165,171,214,0.25)";
-      const lim = 2;
+      // math-space extent of the canvas
+      const [mx0, my1] = toMath(0, 0), [mx1, my0] = toMath(w, h);
       if (snapMode === 2) {
         const g = 0.125;
-        for (let x = -lim; x <= 1 + lim; x += g)
-          for (let y = -lim; y <= lim; y += g) {
+        for (let x = Math.floor(mx0 / g) * g; x <= mx1 + g; x += g)
+          for (let y = Math.floor(my0 / g) * g; y <= my1 + g; y += g) {
             const [sx, sy] = toScreen([x, y]);
             if (sx > -5 && sx < w + 5 && sy > -5 && sy < h + 5) ctx.fillRect(sx - 1.5, sy - 1.5, 3, 3);
           }
       } else {
         const s = 1 / 6, rh = (s * S3) / 2;
-        for (let j = -14; j <= 14; j++)
-          for (let i = -8; i <= 14; i++) {
+        for (let j = Math.floor(my0 / rh) - 1; j <= Math.ceil(my1 / rh) + 1; j++)
+          for (let i = Math.floor(mx0 / s) - 1; i <= Math.ceil(mx1 / s) + 1; i++) {
             const [sx, sy] = toScreen([i * s + (Math.abs(j) % 2) * (s / 2), j * rh]);
             if (sx > -5 && sx < w + 5 && sy > -5 && sy < h + 5) ctx.fillRect(sx - 1.5, sy - 1.5, 3, 3);
           }
@@ -335,11 +341,12 @@
   }
 
   function pushUndo() {
-    undoStack.push(JSON.stringify(gen));
+    undoStack.push(JSON.stringify({ gen, base })); // presets also change the base shape
     if (undoStack.length > 60) undoStack.shift();
   }
 
   function changed() {
+    anim++; // an edit cancels any running "grow" animation
     if (level < 1 && nSegs() > 1) level = 4;
     level = Math.min(level, maxLevel(SEG_CAP));
     morph = 1;
@@ -367,13 +374,16 @@
         if (Math.hypot(mx - p.x, my - p.y) < 18) { seg = i; break; }
       }
     }
-    edCanvas.setPointerCapture(e.pointerId);
+    try { edCanvas.setPointerCapture(e.pointerId); } catch (_) { /* pointer already gone */ }
     ptr = { id: e.pointerId, idx, seg, sx: p.x, sy: p.y, moved: false, pushed: false };
   });
 
   edCanvas.addEventListener("pointermove", (e) => {
     if (!ptr || e.pointerId !== ptr.id || ptr.idx < 0) return;
     const p = MP.pos(e, edCanvas);
+    // keep the corner on the canvas so it can always be grabbed again
+    p.x = MP.clamp(p.x, 4, ed.w - 4);
+    p.y = MP.clamp(p.y, 4, ed.h - 4);
     if (!ptr.moved && Math.hypot(p.x - ptr.sx, p.y - ptr.sy) < 7) return;
     if (!ptr.pushed) { pushUndo(); ptr.pushed = true; }
     ptr.moved = true;
@@ -422,7 +432,25 @@
     changed();
   }
   edCanvas.addEventListener("pointerup", edUp);
-  edCanvas.addEventListener("pointercancel", edUp);
+  // Interrupted touch (system gesture, lost capture): keep a drag's result, but never treat it as a tap.
+  function edAbort(e) {
+    if (!ptr || e.pointerId !== ptr.id) return;
+    const moved = ptr.moved;
+    ptr = null;
+    dragging = false;
+    if (moved) changed();
+    else drawView();
+  }
+  edCanvas.addEventListener("pointercancel", edAbort);
+  edCanvas.addEventListener("lostpointercapture", edAbort);
+  // Drop an in-progress editor touch (used before the generator is replaced wholesale).
+  function cancelPtr() {
+    if (!ptr) return;
+    const id = ptr.id;
+    ptr = null;
+    dragging = false;
+    try { edCanvas.releasePointerCapture(id); } catch (_) { /* already released */ }
+  }
 
   function distToSeg(p, a, b) {
     const dx = b[0] - a[0], dy = b[1] - a[1];
@@ -460,6 +488,7 @@
   // ---------- controls ----------
   function setPreset(name) {
     const p = PRESETS[name];
+    cancelPtr();
     pushUndo();
     gen = { pts: p.pts.map((q) => q.slice()), flips: (p.flips || []).slice() };
     setBase(p.base);
@@ -476,12 +505,16 @@
   document.querySelectorAll("#base .btn").forEach((b) => (b.onclick = () => { setBase(b.dataset.b); changed(); }));
 
   document.getElementById("lvUp").onclick = () => {
-    if (level >= maxLevel(SEG_CAP)) return MP.toast("That's as deep as this iPad can draw!");
+    if (nSegs() < 2) return MP.toast("Tap in the editor to add a corner first!");
+    if (level >= maxLevel(SEG_CAP)) return MP.toast("That's as deep as we can draw!");
     anim++;
     animateTo(level + 1);
   };
   document.getElementById("lvDown").onclick = () => { anim++; level = Math.max(0, level - 1); morph = 1; drawView(); };
-  document.getElementById("build").onclick = () => animateTo(maxLevel(SEG_CAP) >= 5 ? 5 : maxLevel(SEG_CAP), true);
+  document.getElementById("build").onclick = () => {
+    if (nSegs() < 2) return MP.toast("Tap in the editor to add a corner first!");
+    animateTo(Math.min(5, maxLevel(SEG_CAP)), true);
+  };
 
   const snapBtn = document.getElementById("snap");
   const snapLabels = ["Snap off", "Snap △", "Snap □"];
@@ -491,8 +524,11 @@
     drawEditor();
   };
   document.getElementById("edUndo").onclick = () => {
-    if (!undoStack.length) return;
-    gen = JSON.parse(undoStack.pop());
+    if (!undoStack.length) return MP.toast("Nothing to undo");
+    cancelPtr();
+    const u = JSON.parse(undoStack.pop());
+    gen = u.gen;
+    setBase(u.base);
     changed();
   };
 

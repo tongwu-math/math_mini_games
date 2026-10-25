@@ -144,6 +144,7 @@ if (typeof document !== "undefined") (function () {
   let solved = false;
   let hints = 0, hintStep = 0;
   let startTime = 0, endTime = 0;
+  let winTimer = 0; // pending "Code cracked!" modal
 
   // level 1
   let trueShift = 0, userShift = 0, wheelS = 0, wheelTarget = 0, wheelAnim = 0, dragging = null;
@@ -223,6 +224,11 @@ if (typeof document !== "undefined") (function () {
     lastMsg = i;
     plain = C.MESSAGES[i];
     solved = false;
+    // drop anything still in flight from the previous message
+    clearTimeout(winTimer);
+    if (wheelAnim) { cancelAnimationFrame(wheelAnim); wheelAnim = 0; }
+    dragging = null;
+    swipe = null;
     hints = 0;
     hintStep = 0;
     hintsEl.textContent = 0;
@@ -288,25 +294,33 @@ if (typeof document !== "undefined") (function () {
     endTime = performance.now();
     renderAll();
     MP.confetti();
+    // Build the modal now: a New message / level switch in the next 700 ms cancels it,
+    // and it must never show the next message's answer.
     const time = fmtTime(endTime - startTime);
-    setTimeout(() => {
-      const buttons = [{ label: "🎲 Next message", primary: true, onClick: newMessage }];
-      if (level < 3) buttons.push({ label: `Try level ${level + 1} ▶`, onClick: () => setLevel(level + 1) });
-      else buttons.push({ label: "Close" });
-      MP.modal({
-        title: "Code cracked! 🔓",
-        html: `<p style="font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--good);margin:6px 0 12px">${plain}</p>` +
-          `⏱ ${time} &nbsp;·&nbsp; 💡 ${hints} hint${hints === 1 ? "" : "s"}` +
-          (level === 3 ? `<br>The keyword was <b>${vigKey}</b>.` : level === 1 ? `<br>The shift was <b>${trueShift}</b>.` : ""),
-        buttons,
-      });
-    }, 700);
+    const lvl = level;
+    const buttons = [{ label: "🎲 Next message", primary: true, onClick: newMessage }];
+    if (lvl < 3) buttons.push({ label: `Try level ${lvl + 1} ▶`, onClick: () => setLevel(lvl + 1) });
+    else buttons.push({ label: "Close" });
+    const card = {
+      title: "Code cracked! 🔓",
+      html: `<p style="font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--good);margin:6px 0 12px">${plain}</p>` +
+        `⏱ ${time} &nbsp;·&nbsp; 💡 ${hints} hint${hints === 1 ? "" : "s"}` +
+        (lvl === 3 ? `<br>The keyword was <b>${vigKey}</b>.` : lvl === 1 ? `<br>The shift was <b>${trueShift}</b>.` : ""),
+      buttons,
+    };
+    clearTimeout(winTimer);
+    winTimer = setTimeout(() => MP.modal(card), 700);
     return true;
   }
 
+  // Hint / Reveal after the code is cracked (e.g. the win card was dismissed by tapping outside it)
+  function alreadySolved() {
+    MP.toast("Solved! Tap 🎲 New message for another one");
+  }
+
   function reveal() {
-    if (solved) return;
-    if (level === 1) { setShift(trueShift, true); }
+    if (solved) return alreadySolved();
+    if (level === 1) { dragging = null; setShift(trueShift, true); }
     else if (level === 2) { msgLetters.forEach((ch) => (guesses[ch] = invKey[ch.charCodeAt(0) - 65])); }
     else {
       userLen = vigKey.length;
@@ -464,15 +478,32 @@ if (typeof document !== "undefined") (function () {
     const p = MP.pos(e, wheelCanvas);
     return Math.atan2(p.y - wheel.h / 2, p.x - wheel.w / 2);
   }
+  // The wheel needs touch-action: none, which would also block scrolling wherever it is touched.
+  // On phones it fills most of the screen, so dragging the hub (or a corner outside the rings)
+  // scrolls the page by hand instead; only the letter rings spin.
+  const scroller = $("scroller");
   wheelCanvas.addEventListener("pointerdown", (e) => {
-    if (solved || level !== 1) return;
+    if (dragging) return; // one finger at a time
     e.preventDefault();
-    wheelCanvas.setPointerCapture(e.pointerId);
+    try { wheelCanvas.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    const p = MP.pos(e, wheelCanvas);
+    const R = Math.min(wheel.w, wheel.h) / 2;
+    const r = Math.hypot(p.x - wheel.w / 2, p.y - wheel.h / 2);
+    if (solved || level !== 1 || r < R * 0.55 || r > R) {
+      dragging = { id: e.pointerId, scroll: true, y: e.clientY };
+      return;
+    }
     if (wheelAnim) { cancelAnimationFrame(wheelAnim); wheelAnim = 0; }
     dragging = { id: e.pointerId, a: wheelAngle(e) };
   });
   wheelCanvas.addEventListener("pointermove", (e) => {
     if (!dragging || e.pointerId !== dragging.id) return;
+    if (dragging.scroll) {
+      scroller.scrollTop -= e.clientY - dragging.y;
+      dragging.y = e.clientY;
+      return;
+    }
+    if (solved || level !== 1) return;
     const a = wheelAngle(e);
     let da = a - dragging.a;
     if (da > Math.PI) da -= Math.PI * 2;
@@ -485,15 +516,20 @@ if (typeof document !== "undefined") (function () {
   });
   function endWheelDrag(e) {
     if (!dragging || e.pointerId !== dragging.id) return;
+    const wasSpin = !dragging.scroll;
     dragging = null;
+    if (!wasSpin || solved || level !== 1) return;
     wheelTarget = Math.round(wheelS);
     animateWheel();
   }
   wheelCanvas.addEventListener("pointerup", endWheelDrag);
   wheelCanvas.addEventListener("pointercancel", endWheelDrag);
+  wheelCanvas.addEventListener("lostpointercapture", endWheelDrag);
 
-  onTap($("shiftDown"), () => { if (!solved) setShift(-1); });
-  onTap($("shiftUp"), () => { if (!solved) setShift(1); });
+  // (ignored while a finger is spinning the wheel, so the two don't fight)
+  const spinning = () => dragging && !dragging.scroll;
+  onTap($("shiftDown"), () => { if (!solved && !spinning()) setShift(-1); });
+  onTap($("shiftUp"), () => { if (!solved && !spinning()) setShift(1); });
 
   // ---------- level 2: substitution ----------
   const keypad = $("keypad");
@@ -541,6 +577,17 @@ if (typeof document !== "undefined") (function () {
     renderAll();
   }
 
+  // auto-advance to the next empty letter in the message (stays put if none is empty)
+  function selectNextEmpty() {
+    const order = [];
+    for (const ch of cipher) if (C.isLetter(ch) && order.indexOf(ch) < 0) order.push(ch);
+    const start = order.indexOf(selected);
+    for (let i = 1; i <= order.length; i++) {
+      const c = order[(start + i) % order.length];
+      if (!guesses[c]) { selected = c; break; }
+    }
+  }
+
   function assign(letter) {
     if (level !== 2 || solved) return;
     if (!selected) { MP.toast("Tap a secret letter first"); return; }
@@ -556,14 +603,7 @@ if (typeof document !== "undefined") (function () {
       }
       if (owner) delete guesses[owner];
       guesses[selected] = letter;
-      // auto-advance to the next empty letter in the message
-      const order = [];
-      for (const ch of cipher) if (C.isLetter(ch) && order.indexOf(ch) < 0) order.push(ch);
-      const start = order.indexOf(selected);
-      for (let i = 1; i <= order.length; i++) {
-        const c = order[(start + i) % order.length];
-        if (!guesses[c]) { selected = c; break; }
-      }
+      selectNextEmpty();
     } else {
       delete guesses[selected];
     }
@@ -644,7 +684,7 @@ if (typeof document !== "undefined") (function () {
     const l = e.target.closest(".letter");
     if (!l) return;
     e.preventDefault();
-    l.setPointerCapture(e.pointerId);
+    try { l.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
     swipe = { id: e.pointerId, y: e.clientY, slot: +l.closest(".kw").dataset.slot };
   });
   wheelsEl.addEventListener("pointermove", (e) => {
@@ -658,6 +698,7 @@ if (typeof document !== "undefined") (function () {
   const endSwipe = (e) => { if (swipe && e.pointerId === swipe.id) swipe = null; };
   wheelsEl.addEventListener("pointerup", endSwipe);
   wheelsEl.addEventListener("pointercancel", endSwipe);
+  wheelsEl.addEventListener("lostpointercapture", endSwipe);
 
   lenBtns.forEach((b) => {
     b.onclick = () => {
@@ -671,7 +712,7 @@ if (typeof document !== "undefined") (function () {
 
   // ---------- hints ----------
   function hint() {
-    if (solved) return;
+    if (solved) return alreadySolved();
     if (level === 1) {
       const counts = C.letterCounts(cipher);
       const top = ALPHA[counts.indexOf(Math.max.apply(null, counts))];
@@ -682,7 +723,9 @@ if (typeof document !== "undefined") (function () {
         showHint(`The first secret letter <b>${first}</b> really stands for <b>${C.shiftChar(first, -trueShift)}</b>.`);
       } else {
         showHint(`The shift is <b>${trueShift}</b>. Spinning there now!`);
+        dragging = null;
         setShift(trueShift, true);
+        if (hintStep > 2) return; // answer already given: extra taps while it spins don't count
       }
       hintStep++;
       bumpHints();
@@ -695,7 +738,12 @@ if (typeof document !== "undefined") (function () {
       Object.keys(guesses).forEach((k) => { if (guesses[k] === p) delete guesses[k]; });
       guesses[c] = p;
       locked[c] = true;
-      selected = c;
+      // the hinted letter is locked, so move on instead of leaving it selected
+      // (typing would just say "revealed by a hint")
+      if (!selected || locked[selected]) {
+        selected = c;
+        selectNextEmpty();
+      }
       bumpHints();
       showHint(`Secret letter <b>${c}</b> really means <b>${p}</b>. 🔒`);
       renderAll();

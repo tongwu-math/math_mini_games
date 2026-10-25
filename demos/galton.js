@@ -80,15 +80,34 @@ if (typeof document !== "undefined") (function () {
   function computeLayout() {
     const W = cv.w, H = cv.h;
     const R = rows;
-    const y0 = Math.max(70, H * 0.1);
-    const floor = H - 30;
-    const dx = Math.min((W * 0.92) / (R + 1), 74);
-    const minBinH = H * 0.32;
-    const dy = Math.max(10, Math.min(dx * 0.87, (floor - minBinH - y0) / (R - 0.4)));
+    const short = H < 420; // phone landscape
+    const top = short ? 10 : 14;
+    const floor = H - (short ? 24 : 30);
+    const minBinH = H * (short ? 0.28 : 0.32);
+    let dx = Math.min((W * 0.92) / (R + 1), 74);
+    // the hopper sits ~1.85 rows above the first peg, so solve for the row height that fits
+    const dyFit = (floor - minBinH - top - Math.min(9, dx * 0.2)) / (R + 1.45);
+    const dy = Math.max(10, Math.min(dx * 0.87, dyFit));
+    // on wide, short screens narrow the triangle instead of squashing it flat
+    dx = Math.min(dx, dy / 0.62);
     const ballR = MP.clamp(Math.min(dx * 0.2, dy * 0.3), 2.5, 9);
     const pegR = MP.clamp(Math.min(dx, dy) * 0.085, 2, 5);
+    const y0 = top + dy * 1.85 + ballR;
     const binTop = y0 + (R - 1) * dy + dy * 0.75;
+    const old = geo;
     geo = { W, H, R, cx: W / 2, y0, dx, dy, floor, binTop, binH: floor - binTop, ballR, pegR };
+    // resize / rotation mid-flight: move balls with the board instead of letting them fly off
+    if (old && old.R === R) {
+      const kx = dx / old.dx, ky = dy / old.dy;
+      const mx = (x) => geo.cx + (x - old.cx) * kx;
+      const my = (y) => y0 + (y - old.y0) * ky;
+      balls.forEach((b) => {
+        b.x = mx(b.x); b.x0 = mx(b.x0); b.x1 = mx(b.x1);
+        b.y = my(b.y); b.y0 = my(b.y0); b.y1 = my(b.y1);
+        b.hop *= ky;
+        b.vy *= ky;
+      });
+    }
     pegGlow = new Float32Array((R * (R + 1)) / 2);
     let maxC = 1;
     for (let k = 0; k < counts.length; k++) maxC = Math.max(maxC, counts[k]);
@@ -446,9 +465,9 @@ if (typeof document !== "undefined") (function () {
     queue += nBalls; // spawned by the frame loop once the layout exists
   }
 
-  // pointerdown so rapid repeated taps all count (common.js swallows fast double-tap clicks)
-  document.getElementById("drop1").addEventListener("pointerdown", (e) => { e.preventDefault(); drop(1); });
-  document.getElementById("drop100").addEventListener("pointerdown", (e) => { e.preventDefault(); drop(100); });
+  // click (not pointerdown) so starting a scroll of the side controls on a phone doesn't drop balls
+  document.getElementById("drop1").onclick = () => drop(1);
+  document.getElementById("drop100").onclick = () => drop(100);
   canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); drop(1); });
 
   streamBtn.onclick = () => {

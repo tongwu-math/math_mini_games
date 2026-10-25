@@ -30,6 +30,7 @@ html, body {
   user-select: none;
   -webkit-touch-callout: none;
   overscroll-behavior: none;
+  touch-action: manipulation; /* no double-tap zoom, no click delay */
 }
 
 body {

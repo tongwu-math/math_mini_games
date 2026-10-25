@@ -6,6 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0f1226">
   <title>Chaos Game</title>
+  <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/icon-180.png">
   <link rel="stylesheet" href="../shared/style.css">
   <style>
     .stage { background: radial-gradient(circle at center, #161a3c 0%, #0a0c1c 75%); }
@@ -20,6 +23,35 @@
     #ratio { width: 150px; }
     input[type="range"]:disabled { opacity: 0.35; }
     @media (max-width: 700px) { #ratio { width: 110px; } }
+    [hidden] { display: none !important; } /* .btn's display would otherwise win */
+    #legend {
+      position: absolute;
+      top: 52px;
+      left: 14px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: rgba(15, 18, 38, 0.78);
+      font-size: 15px;
+      line-height: 1.55;
+      pointer-events: none;
+    }
+    #legend .row { display: flex; align-items: center; gap: 8px; transition: opacity 0.2s; }
+    #legend .row.dim { opacity: 0.35; }
+    #legend .chip {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      color: #0f1226;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+      line-height: 20px;
+    }
+    #legend .pct { margin-left: auto; padding-left: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    @media (max-width: 700px), (max-height: 500px) {
+      #legend { top: 40px; left: 8px; font-size: 12px; padding: 5px 8px; line-height: 1.5; }
+      #legend .chip { width: 16px; height: 16px; font-size: 11px; line-height: 16px; border-radius: 5px; }
+    }
   </style>
 </head>
 <body>
@@ -33,6 +65,7 @@
     <canvas id="dots"></canvas>
     <canvas id="ui"></canvas>
     <div class="stat">Dots: <b id="count">0</b></div>
+    <div id="legend" hidden></div>
     <div class="overlay-text bottom" id="hint">Tap anywhere to place 3 to 6 corners</div>
   </main>
 
@@ -47,6 +80,8 @@
       <span class="val" id="ratioVal">0.5</span>
     </div>
     <button class="btn" id="noRepeat">🚫 No repeats</button>
+    <button class="btn on" id="fernCopies" hidden>▱ Copies</button>
+    <button class="btn on" id="fernColors" hidden>🎨 Rule colors</button>
     <div class="group">
       <span class="label">Speed</span>
       <input type="range" id="speed" min="0" max="100" value="80">
@@ -72,7 +107,13 @@
     <h3>Self-similarity</h3>
     <p>Zoom into a corner of the triangle and you see the whole triangle again. Shapes made of smaller copies of themselves are <b>fractals</b>. The Sierpinski triangle has dimension log 3 / log 2 ≈ 1.585: more than a line, less than a solid area.</p>
     <h3>The fern</h3>
-    <p>The fern uses 4 maps instead of corners: one makes the stem, one makes the next smaller leaf, and two make the bottom side leaves. Four rules with six numbers each describe the whole plant.</p>
+    <p>The fern uses 4 rules instead of corners. Each rule shrinks, tilts and moves the <i>whole fern</i> into one piece of itself. The outlined boxes on screen show where each rule sends the whole picture:</p>
+    <ul>
+      <li><b>1 · Stem</b> squashes everything into a thin line (1% of picks)</li>
+      <li><b>2 · Main leaf</b> makes a slightly smaller, slightly tilted copy sitting on top (85%)</li>
+      <li><b>3 · Left leaflet</b> and <b>4 · Right leaflet</b> make small turned copies at the bottom (7% each)</li>
+    </ul>
+    <p>Each dot is colored by the rule that placed it, so you can see the fern is just 4 smaller copies of itself. Four rules with six numbers each describe the whole plant.</p>
     <div class="wow">Every game uses different random picks, yet you get the same picture every time. Mathematicians proved that random picks (almost surely) fill in the exact same shape: the attractor depends only on the rules, not on luck.</div>
     <h3>Where it shows up</h3>
     <ul>

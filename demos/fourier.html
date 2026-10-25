@@ -6,6 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0f1226">
   <title>Fourier Circles</title>
+  <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/icon-180.png">
   <link rel="stylesheet" href="../shared/style.css">
   <style>
     .stage { background: radial-gradient(circle at center, #1a1f45 0%, var(--bg) 70%); }
@@ -32,7 +35,7 @@
 
   <main class="stage" id="stage">
     <canvas id="cv"></canvas>
-    <div class="stat" id="stat" hidden><b id="count">256</b> spinning circles</div>
+    <div class="stat" id="stat" hidden><b id="count">256</b> spinning <span id="countWord">circles</span></div>
     <div class="overlay-text" id="hint">☝️ Draw any shape with your finger<small>…or tap a shape below</small></div>
     <div class="overlay-text bottom" id="tip" hidden>Slide <b>Circles</b> left: fewer circles, blurrier shape</div>
   </main>
